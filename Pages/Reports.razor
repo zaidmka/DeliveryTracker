@@ -1,0 +1,325 @@
+﻿
+@page "/reports"
+@attribute [Authorize]
+
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+@using DeliveryTracker.Shared.Dtos.Reports
+
+@inject HttpClient Http
+
+<PageTitle>التقارير - Delivery Tracker</PageTitle>
+
+<div class="reports-page" dir="rtl">
+
+    <div class="reports-heading">
+        <div>
+            <span class="reports-eyebrow">
+                <i class="bi bi-graph-up-arrow"></i>
+                التحليلات والإحصائيات
+            </span>
+            <h2>مركز التقارير</h2>
+            <p>متابعة حركة التوزيع والكميات المسلّمة</p>
+        </div>
+
+        <div class="reports-heading-icon">
+            <i class="bi bi-bar-chart-line"></i>
+        </div>
+    </div>
+
+    <section class="reports-filter-card">
+        <div class="reports-filter-title">
+            <i class="bi bi-calendar-range"></i>
+            تحديد الفترة الزمنية
+        </div>
+
+        <div class="reports-date-grid">
+            <div>
+                <label>من تاريخ</label>
+                <input type="date"
+                       @bind="fromDate"
+                       @bind:format="yyyy-MM-dd" />
+            </div>
+            <div>
+                <label>إلى تاريخ</label>
+                <input type="date"
+                       @bind="toDate"
+                       @bind:format="yyyy-MM-dd" />
+            </div>
+        </div>
+
+        <div class="reports-filter-actions">
+            <button class="reports-primary-btn"
+                    disabled="@loading"
+                    @onclick="LoadReportAsync">
+                <i class="bi bi-funnel"></i>
+                عرض التقرير
+            </button>
+
+            <button class="reports-secondary-btn"
+                    disabled="@loading"
+                    @onclick="ResetAsync">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                كل الفترات
+            </button>
+        </div>
+    </section>
+
+    @if (loading)
+    {
+        <div class="reports-state">
+            <div class="spinner-border text-primary"></div>
+            <p>جاري إعداد التقرير...</p>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-danger rounded-4">
+            @error
+        </div>
+    }
+    else
+    {
+        <section class="reports-stats">
+            <div class="reports-stat">
+                <div class="reports-stat-icon blue">
+                    <i class="bi bi-truck"></i>
+                </div>
+                <strong>@report.TotalDeliveries.ToString("N0")</strong>
+                <span>عمليات التسليم</span>
+            </div>
+
+            <div class="reports-stat">
+                <div class="reports-stat-icon green">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <strong>@report.TotalQuantity.ToString("N0")</strong>
+                <span>إجمالي القطع</span>
+            </div>
+
+            <div class="reports-stat">
+                <div class="reports-stat-icon orange">
+                    <i class="bi bi-shop"></i>
+                </div>
+                <strong>@report.TotalShops.ToString("N0")</strong>
+                <span>المحلات المستفيدة</span>
+            </div>
+
+            <div class="reports-stat">
+                <div class="reports-stat-icon purple">
+                    <i class="bi bi-grid"></i>
+                </div>
+                <strong>@report.TotalItemTypes.ToString("N0")</strong>
+                <span>أنواع المواد الموزّعة</span>
+            </div>
+        </section>
+
+        <section class="reports-panel">
+            <div class="reports-panel-heading">
+                <div>
+                    <h3>حركة التوزيع اليومية</h3>
+                    <p>عدد القطع المسلّمة لكل يوم</p>
+                </div>
+                <i class="bi bi-bar-chart"></i>
+            </div>
+
+            @if (report.Daily.Count == 0)
+            {
+                <div class="reports-empty">
+                    لا توجد عمليات ضمن الفترة المختارة.
+                </div>
+            }
+            else
+            {
+                <div class="reports-chart-scroll">
+                    <div class="reports-chart">
+                        @foreach (var day in report.Daily)
+                        {
+                            <div class="reports-chart-column"
+                                 @key="day.Date">
+                                <span class="reports-chart-value">
+                                    @day.Quantity
+                                </span>
+
+                                <div class="reports-chart-bar-wrap">
+                                    <div class="reports-chart-bar"
+                                         style="@BarStyle(day.Quantity)">
+                                    </div>
+                                </div>
+
+                                <small>
+                                    @day.Date.ToString("MM/dd")
+                                </small>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+
+        <div class="reports-bottom-grid">
+
+            <section class="reports-panel">
+                <div class="reports-panel-heading">
+                    <div>
+                        <h3>المواد الأكثر توزيعاً</h3>
+                        <p>إجمالي الكميات حسب الصنف</p>
+                    </div>
+                    <i class="bi bi-boxes"></i>
+                </div>
+
+                @if (report.Items.Count == 0)
+                {
+                    <div class="reports-empty">
+                        لا توجد مواد موزّعة.
+                    </div>
+                }
+                else
+                {
+                    @foreach (var item in report.Items)
+                    {
+                        <div class="reports-ranking-row"
+                             @key="item.Name">
+                            <div class="reports-ranking-info">
+                                <strong>@item.Name</strong>
+                                <span>@item.Quantity قطعة</span>
+                            </div>
+
+                            <div class="reports-progress">
+                                <div style="@ItemBarStyle(item.Quantity)">
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </section>
+
+            <section class="reports-panel">
+                <div class="reports-panel-heading">
+                    <div>
+                        <h3>أكثر المحلات استلاماً</h3>
+                        <p>أفضل 10 محلات حسب الكميات</p>
+                    </div>
+                    <i class="bi bi-shop"></i>
+                </div>
+
+                @if (report.Shops.Count == 0)
+                {
+                    <div class="reports-empty">
+                        لا توجد محلات ضمن التقرير.
+                    </div>
+                }
+                else
+                {
+                    @foreach (var shop in report.Shops)
+                    {
+                        <div class="reports-shop-row"
+                             @key="shop.Code">
+                            <div class="reports-shop-icon">
+                                <i class="bi bi-shop"></i>
+                            </div>
+
+                            <div class="reports-shop-name">
+                                <strong>@shop.Name</strong>
+                                <small>
+                                    @shop.Code ·
+                                    @shop.DeliveriesCount عملية
+                                </small>
+                            </div>
+
+                            <strong class="reports-shop-quantity">
+                                @shop.Quantity
+                            </strong>
+                        </div>
+                    }
+                }
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    private DeliveryReportDto report = new();
+
+    private DateTime? fromDate;
+    private DateTime? toDate;
+
+    private bool loading;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReportAsync();
+    }
+
+    private async Task LoadReportAsync()
+    {
+        loading = true;
+        error = null;
+
+        try
+        {
+            if (fromDate.HasValue &&
+                toDate.HasValue &&
+                fromDate.Value.Date > toDate.Value.Date)
+            {
+                error = "تاريخ البداية يجب أن يسبق تاريخ النهاية.";
+                return;
+            }
+
+            var parameters = new Dictionary<string, string?>();
+
+            if (fromDate.HasValue)
+                parameters["from"] =
+                    fromDate.Value.ToString("yyyy-MM-dd");
+
+            if (toDate.HasValue)
+                parameters["to"] =
+                    toDate.Value.ToString("yyyy-MM-dd");
+
+            var url = QueryHelpers.AddQueryString(
+                "api/reports/overview", parameters);
+
+            report = await Http.GetFromJsonAsync<DeliveryReportDto>(url)
+                     ?? new DeliveryReportDto();
+        }
+        catch (Exception)
+        {
+            error = "تعذر تحميل التقرير. يرجى المحاولة مجدداً.";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ResetAsync()
+    {
+        fromDate = null;
+        toDate = null;
+
+        await LoadReportAsync();
+    }
+
+    private string BarStyle(int quantity)
+    {
+        var max = Math.Max(1,
+            report.Daily.Max(x => x.Quantity));
+
+        var percentage = Math.Max(3,
+            quantity * 100.0 / max);
+
+        return $"height:{percentage:F1}%;";
+    }
+
+    private string ItemBarStyle(int quantity)
+    {
+        var max = Math.Max(1,
+            report.Items.Max(x => x.Quantity));
+
+        var percentage = quantity * 100.0 / max;
+
+        return $"width:{percentage:F1}%;";
+    }
+}

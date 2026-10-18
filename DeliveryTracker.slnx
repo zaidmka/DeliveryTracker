@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="../DeliveryTracker.Server/DeliveryTracker.Server.csproj" />
+  <Project Path="../DeliveryTracker.Shared/DeliveryTracker.Shared.csproj" />
+  <Project Path="DeliveryTracker.csproj" />
+</Solution>

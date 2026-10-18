@@ -1,0 +1,134 @@
+﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@using DeliveryTracker.Services.Auth
+
+@inject IAuthService Auth
+@inject NavigationManager Nav
+
+<div class="dt-shell" dir="rtl">
+
+    <aside class="dt-sidebar">
+        <div class="dt-brand">
+            <div class="dt-brand-icon">
+                <i class="bi bi-box-seam-fill"></i>
+            </div>
+            <div>
+                <strong>Delivery Tracker</strong>
+                <small>إدارة عمليات التوزيع</small>
+            </div>
+        </div>
+
+        <NavMenu />
+
+        <div class="dt-sidebar-footer">
+            <AuthorizeView>
+                <Authorized Context="sidebarAuth">
+                    <div class="dt-user">
+                        <div class="dt-avatar">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                        <div class="dt-user-info">
+                            <strong>@sidebarAuth.User.Identity?.Name</strong>
+                            <small>حساب المستخدم</small>
+                        </div>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+
+            <button class="dt-logout" @onclick="LogoutAsync">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>تسجيل الخروج</span>
+            </button>
+        </div>
+    </aside>
+
+    <div class="dt-main">
+
+        <header class="dt-header">
+            <div class="dt-mobile-brand">
+                <span class="dt-mobile-logo">
+                    <i class="bi bi-box-seam-fill"></i>
+                </span>
+                <strong>Delivery Tracker</strong>
+            </div>
+
+            <div class="dt-header-title">
+                <span>نظام إدارة التوزيع</span>
+                <small>لوحة التحكم</small>
+            </div>
+
+            <div class="dt-header-actions">
+                <AuthorizeView>
+                    <Authorized Context="headerAuth">
+                        <span class="dt-header-username">
+                            @headerAuth.User.Identity?.Name
+                        </span>
+                    </Authorized>
+                </AuthorizeView>
+
+                <button class="dt-icon-button"
+                        title="تسجيل الخروج"
+                        aria-label="تسجيل الخروج"
+                        @onclick="LogoutAsync">
+                    <i class="bi bi-box-arrow-right"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="dt-content">
+            @Body
+        </main>
+
+        <nav class="dt-bottom-nav" aria-label="التنقل الرئيسي">
+            <NavLink href="" Match="NavLinkMatch.All">
+                <i class="bi bi-house-door"></i>
+                <span>الرئيسية</span>
+            </NavLink>
+
+            <NavLink href="shops">
+                <i class="bi bi-shop"></i>
+                <span>المحلات</span>
+            </NavLink>
+
+            <NavLink href="scan" class="dt-scan-nav">
+                <span class="dt-scan-circle">
+                    <i class="bi bi-qr-code-scan"></i>
+                </span>
+                <span>مسح QR</span>
+            </NavLink>
+
+            <NavLink href="deliveries">
+                <i class="bi bi-clock-history"></i>
+                <span>السجل</span>
+            </NavLink>
+
+            <NavLink href="reports">
+                <i class="bi bi-bar-chart"></i>
+                <span>التقارير</span>
+            </NavLink>
+        </nav>
+
+    </div>
+</div>
+
+@code {
+    private bool loggingOut;
+
+    private async Task LogoutAsync()
+    {
+        if (loggingOut)
+            return;
+
+        loggingOut = true;
+
+        try
+        {
+            await Auth.LogoutAsync();
+            Nav.NavigateTo("/login", forceLoad: true);
+        }
+        catch
+        {
+            loggingOut = false;
+        }
+    }
+}

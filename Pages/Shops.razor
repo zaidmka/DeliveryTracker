@@ -1,0 +1,485 @@
+﻿@page "/shops"
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using DeliveryTracker.Shared.Dtos.Shops
+@using DeliveryTracker.Services.Shops
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@using Microsoft.JSInterop
+@inject IShopService ShopService
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>المحلات - Delivery Tracker</PageTitle>
+
+<div class="shops-page" dir="rtl">
+
+    <div class="shops-heading">
+        <div>
+            <div class="shops-eyebrow">إدارة نقاط التوزيع</div>
+            <h1>المحلات</h1>
+            <p>إضافة المحلات وتنظيم بياناتها ومتابعة حالتها.</p>
+        </div>
+
+        @if (isAdmin)
+        {
+            <button class="shops-primary-btn"
+                    @onclick="OpenCreate">
+                <i class="bi bi-plus-lg"></i>
+                <span>إضافة محل</span>
+            </button>
+        }
+    </div>
+
+    <div class="shops-summary">
+        <div class="shops-stat">
+            <div class="shops-stat-icon">
+                <i class="bi bi-shop"></i>
+            </div>
+            <div>
+                <span>إجمالي المحلات</span>
+                <strong>@shops.Count</strong>
+            </div>
+        </div>
+
+        <div class="shops-stat">
+            <div class="shops-stat-icon green">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div>
+                <span>المحلات الفعالة</span>
+                <strong>@shops.Count(x => x.IsActive)</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="shops-toolbar">
+        <div class="shops-search">
+            <i class="bi bi-search"></i>
+            <input type="search"
+                   placeholder="ابحث باسم المحل أو رمزه أو صاحبه..."
+                   @bind="search"
+                   @bind:event="oninput" />
+        </div>
+
+        <select class="shops-filter" @bind="statusFilter">
+            <option value="all">جميع المحلات</option>
+            <option value="active">الفعالة</option>
+            <option value="inactive">المعطلة</option>
+        </select>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+
+    @if (loading)
+    {
+        <div class="shops-empty">
+            <div class="spinner-border text-primary"></div>
+            <p>جاري تحميل المحلات...</p>
+        </div>
+    }
+    else if (!FilteredShops.Any())
+    {
+        <div class="shops-empty">
+            <i class="bi bi-shop-window"></i>
+            <h4>ماكو محلات مطابقة</h4>
+            <p>جرّب تغيّر البحث أو أضف أول محل.</p>
+        </div>
+    }
+    else
+    {
+        <div class="shops-grid">
+            @foreach (var shop in FilteredShops)
+            {
+                <div class="shops-card" @key="shop.Id">
+                    <div class="shops-card-top">
+                        <div class="shops-shop-icon">
+                            <i class="bi bi-shop"></i>
+                        </div>
+
+                        <span class="shops-status @(shop.IsActive ? "active" : "inactive")">
+                            <i class="bi bi-circle-fill"></i>
+                            @(shop.IsActive ? "فعال" : "معطل")
+                        </span>
+                    </div>
+
+                    <h3>@shop.Name</h3>
+                    <div class="shops-code">رمز المحل: @shop.Code</div>
+
+                    <div class="shops-details">
+                        @if (!string.IsNullOrWhiteSpace(shop.OwnerName))
+                        {
+                            <div>
+                                <i class="bi bi-person"></i>
+                                <span>@shop.OwnerName</span>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(shop.Address))
+                        {
+                            <div>
+                                <i class="bi bi-geo-alt"></i>
+                                <span>@shop.Address</span>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(shop.PhoneNumber))
+                        {
+                            <div>
+                                <i class="bi bi-telephone"></i>
+                                <span dir="ltr">@shop.PhoneNumber</span>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="shops-card-actions">
+                        <button class="shops-secondary-btn"
+                                @onclick="() => ShowQrInfo(shop)">
+                            <i class="bi bi-qr-code"></i>
+                            QR
+                        </button>
+
+                        @if (isAdmin)
+                        {
+                            <button class="shops-secondary-btn"
+                                    @onclick="() => OpenEdit(shop)">
+                                <i class="bi bi-pencil-square"></i>
+                                تعديل
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (showEditor)
+    {
+        <div class="shops-modal-backdrop"
+             @onclick="CloseEditor">
+
+            <div class="shops-modal"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-label="بيانات المحل"
+                 @onclick:stopPropagation="true">
+
+                <div class="shops-modal-header">
+                    <div>
+                        <h3>@(editingId is null ? "إضافة محل جديد" : "تعديل المحل")</h3>
+                        <p>أدخل بيانات المحل المطلوبة</p>
+                    </div>
+
+                    <button class="shops-close"
+                            type="button"
+                            aria-label="إغلاق"
+                            @onclick="CloseEditor">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+                <EditForm Model="@form"
+                          OnValidSubmit="SaveAsync"
+                          FormName="shop-form">
+
+                    <DataAnnotationsValidator />
+
+                    <div class="shops-form-body">
+                        <div class="alert alert-light border small">
+                            <i class="bi bi-shield-check text-primary"></i>
+                            رمز المحل يُنشأ تلقائياً من النظام.
+                        </div>
+
+                        <label>اسم المحل *</label>
+                        <InputText class="form-control"
+                                   @bind-Value="form.Name" />
+                        <ValidationMessage For="@(() => form.Name)" />
+
+                        <label>اسم صاحب المحل</label>
+                        <InputText class="form-control"
+                                   @bind-Value="form.OwnerName" />
+
+                        <label>العنوان</label>
+                        <InputText class="form-control"
+                                   @bind-Value="form.Address" />
+
+                        <label>رقم الهاتف</label>
+                        <InputText class="form-control"
+                                   type="tel"
+                                   @bind-Value="form.PhoneNumber" />
+
+                        <label class="shops-checkbox">
+                            <InputCheckbox @bind-Value="form.IsActive" />
+                            <span>المحل فعال</span>
+                        </label>
+
+                        @if (!string.IsNullOrWhiteSpace(saveError))
+                        {
+                            <div class="alert alert-danger mb-0">
+                                @saveError
+                            </div>
+                        }
+                    </div>
+
+                    <div class="shops-modal-footer">
+                        <button type="button"
+                                class="shops-secondary-btn"
+                                disabled="@saving"
+                                @onclick="CloseEditor">
+                            إلغاء
+                        </button>
+
+                        <button type="submit"
+                                class="shops-primary-btn"
+                                disabled="@saving">
+                            @if (saving)
+                            {
+                                <span class="spinner-border spinner-border-sm"></span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check2"></i>
+                            }
+                            @(saving ? "جاري الحفظ..." : "حفظ البيانات")
+                        </button>
+                    </div>
+
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    
+    @if (showQrDialog && selectedShop is not null)
+    {
+        <div class="shops-modal-backdrop"
+             @onclick="CloseQr">
+
+            <div class="shops-modal shops-qr-modal"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-label="رمز QR للمحل"
+                 @onclick:stopPropagation="true">
+
+                <div class="shops-modal-header">
+                    <div>
+                        <h3>رمز QR للمحل</h3>
+                        <p>امسح الرمز لفتح صفحة التسليم</p>
+                    </div>
+
+                    <button class="shops-close"
+                            type="button"
+                            @onclick="CloseQr"
+                            aria-label="إغلاق">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+                <div class="shops-qr-content">
+
+                    <div class="shops-qr-print-card">
+
+                        <div class="shops-qr-brand">
+                            <i class="bi bi-truck"></i>
+                            <span>Delivery Tracker</span>
+                        </div>
+
+                        <h2>@selectedShop.Name</h2>
+
+                        <div class="shops-qr-shopcode">
+                            @selectedShop.Code
+                        </div>
+
+                        <div class="shops-qr-image">
+                            <img src="@GetQrImageUrl(selectedShop.Id)"
+                                 alt="QR Code"
+                                 width="230"
+                                 height="230" />
+                        </div>
+
+                        <div class="shops-qr-instruction">
+                            <i class="bi bi-phone"></i>
+                            امسح الرمز لتسجيل عملية التسليم
+                        </div>
+
+                    </div>
+
+                    <div class="shops-qr-buttons">
+                        <button type="button"
+                                class="shops-primary-btn"
+                                @onclick="PrintQrAsync">
+                            <i class="bi bi-printer"></i>
+                            طباعة QR
+                        </button>
+
+                        <button type="button"
+                                class="shops-secondary-btn"
+                                @onclick="CloseQr">
+                            إغلاق
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private List<ShopDto> shops = new();
+
+    private bool loading = true;
+    private bool saving;
+    private bool isAdmin;
+
+    private bool showEditor;
+    private bool showQrDialog;
+
+    private int? editingId;
+    private ShopDto? selectedShop;
+
+    private string search = "";
+    private string statusFilter = "all";
+    private string? error;
+    private string? saveError;
+
+    private SaveShopRequest form = new();
+
+    private IEnumerable<ShopDto> FilteredShops =>
+        shops.Where(x =>
+            (statusFilter == "all" ||
+             (statusFilter == "active" && x.IsActive) ||
+             (statusFilter == "inactive" && !x.IsActive))
+            &&
+            (string.IsNullOrWhiteSpace(search) ||
+             x.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) ||
+             x.Code.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) ||
+             (x.OwnerName?.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) ?? false)))
+        .OrderBy(x => x.Name);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        isAdmin = authState.User.IsInRole("Admin");
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        error = null;
+
+        try
+        {
+            shops = await ShopService.GetAllAsync();
+        }
+        catch (Exception)
+        {
+            error = "تعذر تحميل المحلات. تحقق من الاتصال بالسيرفر.";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void OpenCreate()
+    {
+        if (!isAdmin) return;
+
+        editingId = null;
+        form = new SaveShopRequest { IsActive = true };
+        saveError = null;
+        showEditor = true;
+    }
+
+    private void OpenEdit(ShopDto shop)
+    {
+        if (!isAdmin) return;
+
+        editingId = shop.Id;
+
+        form = new SaveShopRequest
+        {
+            Name = shop.Name,
+            OwnerName = shop.OwnerName,
+            Address = shop.Address,
+            PhoneNumber = shop.PhoneNumber,
+            IsActive = shop.IsActive
+        };
+
+        saveError = null;
+        showEditor = true;
+    }
+
+    private void CloseEditor()
+    {
+        if (saving) return;
+        showEditor = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (saving || !isAdmin) return;
+
+        saving = true;
+        saveError = null;
+
+        try
+        {
+            if (editingId.HasValue)
+                await ShopService.UpdateAsync(editingId.Value, form);
+            else
+                await ShopService.CreateAsync(form);
+
+            showEditor = false;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            saveError = ex.Message;
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private void ShowQrInfo(ShopDto shop)
+    {
+        selectedShop = shop;
+        showQrDialog = true;
+    }
+
+    private void CloseQr()
+    {
+        showQrDialog = false;
+        selectedShop = null;
+    }
+
+
+    //qr code printing
+    private string GetQrImageUrl(int shopId)
+    {
+        return Nav.ToAbsoluteUri($"api/shops/{shopId}/qr").ToString();
+    }
+
+    private async Task PrintQrAsync()
+    {
+        if (selectedShop is null)
+            return;
+
+        await JS.InvokeVoidAsync(
+            "deliveryQr.print",
+            selectedShop.Name,
+            selectedShop.Code,
+            GetQrImageUrl(selectedShop.Id));
+    }
+
+}

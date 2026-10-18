@@ -1,0 +1,42 @@
+﻿
+.items-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    background: rgba(15, 23, 42, .5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.items-dialog {
+    background: #fff;
+    border-radius: 20px;
+    padding: 24px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90dvh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .15);
+}
+
+    .items-dialog .validation-message {
+        color: #dc3545;
+        font-size: 12px;
+        display: block;
+        margin-top: 5px;
+    }
+
+@media (max-width: 600px) {
+    .items-backdrop {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .items-dialog {
+        border-radius: 22px 22px 0 0;
+        max-height: 92dvh;
+        padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    }
+}

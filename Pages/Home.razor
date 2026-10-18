@@ -1,0 +1,244 @@
+﻿
+@page "/"
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+
+<PageTitle>الرئيسية - Delivery Tracker</PageTitle>
+
+<div class="dt-home" dir="rtl">
+
+    @if (loading)
+    {
+        <div class="dt-loading">
+            <div class="spinner-border text-primary"></div>
+            <p>جاري تحميل لوحة التحكم...</p>
+        </div>
+    }
+    else if (!isAuthenticated)
+    {
+        <div class="dt-guest">
+            <div class="dt-guest-icon">
+                <i class="bi bi-shield-lock"></i>
+            </div>
+
+            <h3>مرحباً بك في Delivery Tracker</h3>
+            <p>سجّل دخولك للوصول إلى خدمات متابعة التوزيع.</p>
+
+            <button class="dt-btn dt-btn-primary"
+                    @onclick='() => Go("/login")'>
+                <i class="bi bi-box-arrow-in-left"></i>
+                تسجيل الدخول
+            </button>
+        </div>
+    }
+    else
+    {
+        <!-- Header -->
+        <header class="dt-header">
+            <div class="dt-brand">
+                <div class="dt-brand-icon">
+                    <i class="bi bi-truck"></i>
+                </div>
+
+                <div>
+                    <h1>Delivery Tracker</h1>
+                    <p>لوحة التحكم الرئيسية</p>
+                </div>
+            </div>
+
+            <div class="dt-user-avatar">
+                <i class="bi bi-person-fill"></i>
+            </div>
+        </header>
+
+        <!-- Welcome -->
+        <section class="dt-hero">
+            <div class="dt-hero-content">
+                <div class="dt-hero-tag">
+                    <i class="bi bi-stars"></i>
+                    نظام متابعة التوزيع
+                </div>
+
+                <p class="dt-welcome">أهلاً بعودتك 👋</p>
+
+                <h2>@username</h2>
+
+                <p class="dt-hero-description">
+                    تابع عمليات التوزيع، وسجّل التسليمات
+                    للمحلات بسهولة من مكان واحد.
+                </p>
+
+                <button class="dt-hero-button"
+                        @onclick='() => Go("/scan")'>
+                    <i class="bi bi-qr-code-scan"></i>
+                    بدء عملية تسليم
+                    <i class="bi bi-arrow-left"></i>
+                </button>
+            </div>
+
+            <div class="dt-hero-decoration">
+                <i class="bi bi-truck"></i>
+            </div>
+        </section>
+
+        <!-- Statistics -->
+        <section class="dt-section">
+            <div class="dt-section-heading">
+                <div>
+                    <h3>نظرة عامة</h3>
+                    <p>ملخص نشاط النظام</p>
+                </div>
+
+                <span class="dt-section-tag">
+                    <i class="bi bi-activity"></i>
+                    الإحصائيات
+                </span>
+            </div>
+
+            <div class="dt-stats-grid">
+                <div class="dt-stat-card">
+                    <div class="dt-stat-icon blue">
+                        <i class="bi bi-shop"></i>
+                    </div>
+                    <div class="dt-stat-value">—</div>
+                    <div class="dt-stat-label">المحلات</div>
+                </div>
+
+                <div class="dt-stat-card">
+                    <div class="dt-stat-icon green">
+                        <i class="bi bi-box-seam"></i>
+                    </div>
+                    <div class="dt-stat-value">—</div>
+                    <div class="dt-stat-label">المواد</div>
+                </div>
+
+                <div class="dt-stat-card">
+                    <div class="dt-stat-icon orange">
+                        <i class="bi bi-truck"></i>
+                    </div>
+                    <div class="dt-stat-value">—</div>
+                    <div class="dt-stat-label">عمليات التسليم</div>
+                </div>
+
+                <div class="dt-stat-card">
+                    <div class="dt-stat-icon purple">
+                        <i class="bi bi-calendar-check"></i>
+                    </div>
+                    <div class="dt-stat-value">—</div>
+                    <div class="dt-stat-label">تسليمات اليوم</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Actions -->
+        <section class="dt-section">
+            <div class="dt-section-heading">
+                <div>
+                    <h3>الوصول السريع</h3>
+                    <p>انتقل إلى خدمات النظام</p>
+                </div>
+            </div>
+
+            <div class="dt-actions-grid">
+
+                <button class="dt-action-card"
+                        @onclick='() => Go("/scan")'>
+                    <span class="dt-action-icon blue">
+                        <i class="bi bi-qr-code-scan"></i>
+                    </span>
+                    <strong>تسجيل تسليم</strong>
+                    <small>فتح رمز QR للمحل</small>
+                    <i class="bi bi-arrow-up-left dt-action-arrow"></i>
+                </button>
+
+                <button class="dt-action-card"
+                        @onclick='() => Go("/shops")'>
+                    <span class="dt-action-icon green">
+                        <i class="bi bi-shop"></i>
+                    </span>
+                    <strong>المحلات</strong>
+                    <small>إدارة المحلات والرموز</small>
+                    <i class="bi bi-arrow-up-left dt-action-arrow"></i>
+                </button>
+
+                <button class="dt-action-card"
+                        @onclick='() => Go("/items")'>
+                    <span class="dt-action-icon orange">
+                        <i class="bi bi-box-seam"></i>
+                    </span>
+                    <strong>المواد</strong>
+                    <small>إدارة أصناف التوزيع</small>
+                    <i class="bi bi-arrow-up-left dt-action-arrow"></i>
+                </button>
+
+                <button class="dt-action-card"
+                        @onclick='() => Go("/deliveries")'>
+                    <span class="dt-action-icon purple">
+                        <i class="bi bi-clock-history"></i>
+                    </span>
+                    <strong>سجل التسليم</strong>
+                    <small>عرض العمليات السابقة</small>
+                    <i class="bi bi-arrow-up-left dt-action-arrow"></i>
+                </button>
+
+                <button class="dt-action-card"
+                        @onclick='() => Go("/reports")'>
+                    <span class="dt-action-icon cyan">
+                        <i class="bi bi-bar-chart-line"></i>
+                    </span>
+                    <strong>التقارير</strong>
+                    <small>الإحصائيات والتحليلات</small>
+                    <i class="bi bi-arrow-up-left dt-action-arrow"></i>
+                </button>
+
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <div class="dt-home-footer">
+            <i class="bi bi-shield-check"></i>
+            <span>Delivery Tracker · نظام إدارة ومتابعة التوزيع</span>
+        </div>
+    }
+
+</div>
+
+@code {
+    private bool loading = true;
+    private bool isAuthenticated;
+
+    private string username = "-";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var state =
+                await AuthStateProvider.GetAuthenticationStateAsync();
+
+            var user = state.User;
+
+            isAuthenticated =
+                user.Identity?.IsAuthenticated == true;
+
+            username = user.Identity?.Name ?? "مستخدم النظام";
+        }
+        catch
+        {
+            isAuthenticated = false;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void Go(string path)
+    {
+        Nav.NavigateTo(path);
+    }
+}

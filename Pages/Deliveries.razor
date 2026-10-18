@@ -1,0 +1,369 @@
+﻿```
+@page "/deliveries"
+@attribute [Authorize]
+@using System.Net.Http.Json
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+@using DeliveryTracker.Shared.Dtos.Deliveries
+
+@inject HttpClient Http
+
+<PageTitle>سجل التسليمات - Delivery Tracker</PageTitle>
+
+<div class="delivery-history" dir="rtl">
+
+    <div class="dh-header">
+        <div>
+            <div class="dh-eyebrow">
+                <i class="bi bi-clock-history"></i>
+                متابعة التوزيع
+            </div>
+
+            <h2>سجل التسليمات</h2>
+            <p>استعراض العمليات السابقة وتفاصيل المواد المسلّمة</p>
+        </div>
+
+        <div class="dh-header-icon">
+            <i class="bi bi-clipboard-check"></i>
+        </div>
+    </div>
+
+    <div class="dh-filters">
+
+        <div class="dh-search">
+            <i class="bi bi-search"></i>
+            <input type="search"
+                   placeholder="اسم المحل، الرمز أو رقم العملية"
+                   @bind="search"
+                   @bind:event="oninput" />
+        </div>
+
+        <div class="dh-date-row">
+    <div>
+        <label>من تاريخ</label>
+        <InputDate TValue="DateTime?"
+                   @bind-Value="fromDate"
+                   Type="InputDateType.Date" />
+    </div>
+
+    <div>
+        <label>إلى تاريخ</label>
+        <InputDate TValue="DateTime?"
+                   @bind-Value="toDate"
+                   Type="InputDateType.Date" />
+    </div>
+        </div>
+
+        <div class="dh-filter-actions">
+            <button class="dh-btn-primary"
+                    disabled="@loading"
+                    @onclick="ApplyFilters">
+                <i class="bi bi-funnel"></i>
+                تطبيق الفلترة
+            </button>
+
+            <button class="dh-btn-secondary"
+                    disabled="@loading"
+                    @onclick="ResetFilters">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                إعادة تعيين
+            </button>
+        </div>
+    </div>
+
+    <div class="dh-section-heading">
+        <div>
+            <h4>العمليات المسجّلة</h4>
+            <span>إجمالي النتائج: @result.TotalCount</span>
+        </div>
+    </div>
+
+    @if (loading)
+    {
+        <div class="dh-state">
+            <div class="spinner-border text-primary"></div>
+            <p>جاري تحميل السجل...</p>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-danger rounded-4">
+            @error
+            <button class="btn btn-sm btn-outline-danger me-2"
+                    @onclick="LoadAsync">
+                إعادة المحاولة
+            </button>
+        </div>
+    }
+    else if (result.Items.Count == 0)
+    {
+        <div class="dh-state">
+            <i class="bi bi-inbox"></i>
+            <h5>لا توجد عمليات تسليم</h5>
+            <p>ماكو نتائج مطابقة للفلاتر الحالية.</p>
+        </div>
+    }
+    else
+    {
+        <div class="dh-list">
+            @foreach (var delivery in result.Items)
+            {
+                <button class="dh-card"
+                        @key="delivery.Id"
+                        @onclick="() => OpenDetails(delivery.Id)">
+
+                    <div class="dh-card-top">
+                        <div class="dh-shop-icon">
+                            <i class="bi bi-shop"></i>
+                        </div>
+
+                        <div class="dh-shop-info">
+                            <strong>@delivery.ShopName</strong>
+                            <small>@delivery.ShopCode</small>
+                        </div>
+
+                        <span class="dh-status">
+                            <i class="bi bi-check-circle-fill"></i>
+                            مسجّلة
+                        </span>
+                    </div>
+
+                    <div class="dh-card-bottom">
+                        <span>
+                            <i class="bi bi-calendar3"></i>
+                            @FormatDate(delivery.DeliveryDate)
+                        </span>
+
+                        <span>
+                            <i class="bi bi-box-seam"></i>
+                            @delivery.Items.Sum(x => x.Quantity) قطعة
+                        </span>
+
+                        <span class="dh-card-number">
+                            #@delivery.Id
+                        </span>
+                    </div>
+                </button>
+            }
+        </div>
+
+        <div class="dh-pagination">
+            <button disabled="@(currentPage <= 1)"
+                    @onclick="PreviousPage">
+                <i class="bi bi-chevron-right"></i>
+                السابق
+            </button>
+
+            <span>صفحة @currentPage من @result.TotalPages</span>
+
+            <button disabled="@(currentPage >= result.TotalPages)"
+                    @onclick="NextPage">
+                التالي
+                <i class="bi bi-chevron-left"></i>
+            </button>
+        </div>
+    }
+
+</div>
+
+@if (selectedDelivery is not null)
+{
+    <div class="dh-overlay" @onclick="CloseDetails">
+        <div class="dh-modal"
+             role="dialog"
+             aria-modal="true"
+             aria-label="تفاصيل عملية التسليم"
+             @onclick:stopPropagation="true">
+
+            <div class="dh-modal-header">
+                <div>
+                    <small>تفاصيل عملية التسليم</small>
+                    <h4>العملية #@selectedDelivery.Id</h4>
+                </div>
+
+                <button class="dh-close"
+                        @onclick="CloseDetails"
+                        aria-label="إغلاق">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <div class="dh-modal-body" dir="rtl">
+                <div class="dh-detail-shop">
+                    <i class="bi bi-shop"></i>
+                    <div>
+                        <strong>@selectedDelivery.ShopName</strong>
+                        <small>@selectedDelivery.ShopCode</small>
+                    </div>
+                </div>
+
+                <div class="dh-detail-meta">
+                    <span>تاريخ التسليم</span>
+                    <strong>@FormatDate(selectedDelivery.DeliveryDate)</strong>
+                </div>
+
+                <div class="dh-detail-meta">
+                    <span>رقم العملية</span>
+                    <strong>#@selectedDelivery.Id</strong>
+                </div>
+
+                <h5 class="dh-items-title">المواد المسلّمة</h5>
+
+                @foreach (var item in selectedDelivery.Items)
+                {
+                    <div class="dh-item-row">
+                        <span>@item.ItemName</span>
+                        <strong>@item.Quantity</strong>
+                    </div>
+                }
+
+                <div class="dh-total">
+                    <span>مجموع القطع</span>
+                    <strong>
+                        @selectedDelivery.Items.Sum(x => x.Quantity)
+                    </strong>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(selectedDelivery.Notes))
+                {
+                    <div class="dh-notes">
+                        <strong>ملاحظات</strong>
+                        <p>@selectedDelivery.Notes</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DeliveryPageDto result = new();
+
+    private DeliveryDto? selectedDelivery;
+
+    private string search = "";
+    private DateTime? fromDate;
+    private DateTime? toDate;
+    private string? error;
+
+    private int currentPage = 1;
+    private const int PageSize = 10;
+
+    private bool loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        error = null;
+
+        try
+        {
+            var parameters = new Dictionary<string, string?>
+            {
+                ["page"] = currentPage.ToString(),
+                ["pageSize"] = PageSize.ToString()
+            };
+
+            if (!string.IsNullOrWhiteSpace(search))
+                parameters["search"] = search.Trim();
+
+            if (fromDate.HasValue)
+                parameters["from"] = fromDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+            if (toDate.HasValue)
+                parameters["to"] = toDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+            var url = QueryHelpers.AddQueryString(
+                "api/deliveries", parameters);
+
+            result = await Http.GetFromJsonAsync<DeliveryPageDto>(url)
+                     ?? new DeliveryPageDto();
+        }
+        catch
+        {
+            error = "تعذر تحميل سجل التسليمات.";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        currentPage = 1;
+        await LoadAsync();
+    }
+
+    private async Task ResetFilters()
+    {
+        search = "";
+        fromDate = null;
+        toDate = null;
+        currentPage = 1;
+
+        await LoadAsync();
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage >= result.TotalPages)
+            return;
+
+        currentPage++;
+        await LoadAsync();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage <= 1)
+            return;
+
+        currentPage--;
+        await LoadAsync();
+    }
+
+    private async Task OpenDetails(int id)
+    {
+        try
+        {
+            selectedDelivery =
+                await Http.GetFromJsonAsync<DeliveryDto>(
+                    $"api/deliveries/{id}");
+        }
+        catch
+        {
+            error = "تعذر تحميل تفاصيل العملية.";
+        }
+    }
+
+    private void CloseDetails()
+    {
+        selectedDelivery = null;
+    }
+
+    private static string FormatDate(string? date)
+    {
+        if (string.IsNullOrWhiteSpace(date))
+            return "-";
+
+        return DateTime.TryParse(date, CultureInfo.InvariantCulture,
+            DateTimeStyles.RoundtripKind, out var parsed)
+            ? FormatDate(parsed)
+            : date;
+    }
+
+    private static string FormatDate(DateTime date)
+    {
+        return date.ToLocalTime().ToString("yyyy/MM/dd - hh:mm tt");
+    }
+}
+
+```

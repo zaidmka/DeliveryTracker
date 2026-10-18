@@ -1,0 +1,448 @@
+﻿
+.dt-home {
+    --dt-primary: #2563eb;
+    --dt-text: #17243b;
+    --dt-muted: #8190a5;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 25px 20px 110px;
+    color: var(--dt-text);
+    font-family: 'Alexandria', sans-serif;
+}
+
+/* Header */
+
+.dt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 25px;
+}
+
+.dt-brand {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+}
+
+.dt-brand-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    color: white;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    font-size: 25px;
+    box-shadow: 0 8px 18px rgba(37,99,235,.18);
+}
+
+.dt-brand h1 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 4px;
+}
+
+.dt-brand p {
+    font-size: 12px;
+    color: var(--dt-muted);
+    margin: 0;
+}
+
+.dt-user-avatar {
+    width: 43px;
+    height: 43px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #eaf1ff;
+    color: #2563eb;
+    font-size: 21px;
+}
+
+/* Hero */
+
+.dt-hero {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(125deg, #2563eb, #1e40af);
+    border-radius: 25px;
+    padding: 35px;
+    min-height: 260px;
+    color: #fff;
+    margin-bottom: 35px;
+    box-shadow: 0 15px 35px rgba(37,99,235,.15);
+}
+
+    .dt-hero::after {
+        content: "";
+        position: absolute;
+        width: 320px;
+        height: 320px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.05);
+        left: -90px;
+        top: -100px;
+    }
+
+.dt-hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 560px;
+}
+
+.dt-hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 50px;
+    background: rgba(255,255,255,.14);
+    color: #e0edff;
+    font-size: 11px;
+    margin-bottom: 18px;
+}
+
+.dt-welcome {
+    font-size: 13px;
+    color: #c7ddff;
+    margin-bottom: 7px;
+}
+
+.dt-hero h2 {
+    font-size: 29px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.dt-hero-description {
+    font-size: 13px;
+    color: #dbeafe;
+    line-height: 2;
+    margin-bottom: 24px;
+}
+
+.dt-hero-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: white;
+    border: 0;
+    border-radius: 13px;
+    padding: 13px 18px;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 700;
+    transition: .2s;
+}
+
+    .dt-hero-button:hover {
+        transform: translateY(-2px);
+        background: #eff6ff;
+    }
+
+.dt-hero-decoration {
+    position: absolute;
+    left: 7%;
+    bottom: -35px;
+    font-size: 190px;
+    color: rgba(255,255,255,.10);
+    transform: scaleX(-1);
+}
+
+/* Sections */
+
+.dt-section {
+    margin-bottom: 34px;
+}
+
+.dt-section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+    .dt-section-heading h3 {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .dt-section-heading p {
+        font-size: 12px;
+        color: var(--dt-muted);
+        margin: 0;
+    }
+
+.dt-section-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+}
+
+/* Statistics */
+
+.dt-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 15px;
+}
+
+.dt-stat-card {
+    background: #fff;
+    border: 1px solid #edf0f5;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(15,23,42,.035);
+}
+
+.dt-stat-icon,
+.dt-action-icon {
+    display: grid;
+    place-items: center;
+    border-radius: 13px;
+}
+
+.dt-stat-icon {
+    width: 45px;
+    height: 45px;
+    font-size: 21px;
+    margin-bottom: 18px;
+}
+
+.dt-stat-value {
+    font-size: 29px;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.dt-stat-label {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.blue {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.green {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+.orange {
+    background: #fff7ed;
+    color: #ea580c;
+}
+
+.purple {
+    background: #f5f3ff;
+    color: #7c3aed;
+}
+
+.cyan {
+    background: #ecfeff;
+    color: #0891b2;
+}
+
+/* Quick Actions */
+
+.dt-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 15px;
+}
+
+.dt-action-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: right;
+    min-height: 160px;
+    padding: 22px;
+    background: #fff;
+    border: 1px solid #edf0f5;
+    border-radius: 20px;
+    transition: .2s;
+    color: var(--dt-text);
+}
+
+    .dt-action-card:hover {
+        border-color: #bfdbfe;
+        box-shadow: 0 12px 28px rgba(37,99,235,.08);
+        transform: translateY(-3px);
+    }
+
+.dt-action-icon {
+    width: 46px;
+    height: 46px;
+    font-size: 22px;
+    margin-bottom: 17px;
+}
+
+.dt-action-card strong {
+    font-size: 14px;
+    margin-bottom: 7px;
+}
+
+.dt-action-card small {
+    font-size: 11px;
+    color: #8190a5;
+}
+
+.dt-action-arrow {
+    position: absolute;
+    left: 20px;
+    bottom: 20px;
+    font-size: 13px;
+    color: #94a3b8;
+}
+
+/* Footer */
+
+.dt-home-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 9px;
+    font-size: 11px;
+    color: #94a3b8;
+    padding: 20px 0;
+}
+
+/* Loading and Guest */
+
+.dt-loading,
+.dt-guest {
+    min-height: 55vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 15px;
+}
+
+.dt-guest-icon {
+    width: 80px;
+    height: 80px;
+    display: grid;
+    place-items: center;
+    border-radius: 24px;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 35px;
+}
+
+.dt-guest h3 {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.dt-guest p {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.dt-btn {
+    border: 0;
+    padding: 13px 20px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.dt-btn-primary {
+    color: white;
+    background: #2563eb;
+}
+
+/* Mobile */
+
+@media (max-width: 768px) {
+    .dt-home {
+        padding: 18px 14px 100px;
+    }
+
+    .dt-header {
+        margin-bottom: 18px;
+    }
+
+    .dt-brand-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 22px;
+        border-radius: 13px;
+    }
+
+    .dt-brand h1 {
+        font-size: 16px;
+    }
+
+    .dt-hero {
+        min-height: auto;
+        padding: 26px 22px;
+        border-radius: 20px;
+        margin-bottom: 28px;
+    }
+
+        .dt-hero h2 {
+            font-size: 22px;
+        }
+
+    .dt-hero-decoration {
+        font-size: 115px;
+        left: -10px;
+        bottom: -12px;
+    }
+
+    .dt-stats-grid {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+        gap: 10px;
+    }
+
+    .dt-stat-card {
+        padding: 16px;
+        border-radius: 16px;
+    }
+
+    .dt-stat-value {
+        font-size: 25px;
+    }
+
+    .dt-actions-grid {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+        gap: 10px;
+    }
+
+    .dt-action-card {
+        padding: 16px;
+        min-height: 145px;
+        border-radius: 16px;
+    }
+
+        .dt-action-card strong {
+            font-size: 12px;
+        }
+
+        .dt-action-card small {
+            font-size: 10px;
+            line-height: 1.7;
+        }
+
+    .dt-action-arrow {
+        left: 12px;
+        bottom: 12px;
+    }
+
+    .dt-section-heading h3 {
+        font-size: 16px;
+    }
+}

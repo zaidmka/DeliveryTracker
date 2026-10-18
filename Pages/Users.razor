@@ -1,0 +1,461 @@
+﻿
+@page "/users"
+@attribute [Authorize(Roles = "Admin")]
+
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@using DeliveryTracker.Shared.Dtos.Users
+
+@inject HttpClient Http
+
+<PageTitle>إدارة المستخدمين</PageTitle>
+
+<div class="users-page" dir="rtl">
+    <header class="users-header">
+        <div class="users-header-content">
+            <div class="users-eyebrow"><i class="bi bi-shield-lock"></i> لوحة إدارة النظام <span></span> المستخدمون</div>
+            <h1>المستخدمون والصلاحيات</h1>
+            <p>إدارة حسابات الفريق والتحكم بمستويات الوصول للنظام.</p>
+        </div>
+        <button type="button" class="users-add-btn" @onclick="OpenCreate">
+            <i class="bi bi-person-plus-fill"></i><span>إضافة مستخدم</span>
+        </button>
+    </header>
+
+    <section class="users-stats" aria-label="إحصائيات المستخدمين">
+        <div class="users-stat-card"><span class="users-stat-icon total"><i class="bi bi-people-fill"></i></span><div><small>إجمالي المستخدمين</small><strong>@users.Count</strong></div></div>
+        <div class="users-stat-card"><span class="users-stat-icon enabled"><i class="bi bi-person-check-fill"></i></span><div><small>الحسابات الفعّالة</small><strong>@users.Count(x => x.IsActive)</strong></div></div>
+        <div class="users-stat-card"><span class="users-stat-icon admin"><i class="bi bi-shield-fill-check"></i></span><div><small>مديرو النظام</small><strong>@users.Count(x => x.Role == "Admin")</strong></div></div>
+        <div class="users-stat-card"><span class="users-stat-icon disabled"><i class="bi bi-person-x-fill"></i></span><div><small>الحسابات المعطّلة</small><strong>@users.Count(x => !x.IsActive)</strong></div></div>
+    </section>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert alert-success">@message</div>
+    }
+
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+
+    <section class="users-toolbar">
+        <div class="users-search">
+            <i class="bi bi-search"></i>
+            <input aria-label="بحث عن مستخدم" placeholder="ابحث بالاسم أو اسم المستخدم..." @bind="search" @bind:event="oninput" />
+        </div>
+        <div class="users-filter-wrap">
+            <i class="bi bi-funnel"></i>
+            <select aria-label="تصفية المستخدمين" @bind="statusFilter">
+                <option value="all">جميع الحسابات</option>
+                <option value="active">الفعّالة فقط</option>
+                <option value="inactive">المعطّلة فقط</option>
+                <option value="admins">المديرون</option>
+                <option value="employees">الموظفون</option>
+            </select>
+        </div>
+    </section>
+    <div class="users-section-heading"><div><h2>قائمة المستخدمين</h2><p>تعديل بيانات الحسابات وإدارة كلمات المرور</p></div><span>@FilteredUsers.Count() حساب</span></div>
+
+    @if (loading)
+    {
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary"></div>
+        </div>
+    }
+    else
+    {
+        <div class="users-grid">
+            @foreach (var user in FilteredUsers)
+            {
+                <div class="user-card" @key="user.Id">
+                    <div class="user-card-top">
+                        <div class="user-avatar @(user.Role == "Admin" ? "is-admin" : "")">@Initials(user.FullName)</div>
+
+                        <span class="user-status @(user.IsActive ? "active" : "inactive")">
+                            @(user.IsActive ? "فعال" : "معطّل")
+                        </span>
+                    </div>
+
+                    <h3 title="@user.FullName">@user.FullName</h3>
+                    <p class="user-username"><i class="bi bi-at"></i>@user.UserName</p>
+
+                    <div class="user-meta">
+                        <span class="user-role @(user.Role == "Admin" ? "is-admin" : "")"><i class="bi @(user.Role == "Admin" ? "bi-shield-check" : "bi-person-badge")"></i> @(user.Role == "Admin" ? "مدير النظام" : "موظف")</span>
+                        <small><i class="bi bi-calendar3"></i> @user.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd")</small>
+                    </div>
+
+                    <div class="user-actions">
+                        <button type="button" @onclick="() => OpenEdit(user)">
+                            <i class="bi bi-pencil-square"></i>
+                            تعديل
+                        </button>
+
+                        <button type="button" @onclick="() => OpenPassword(user)">
+                            <i class="bi bi-key"></i>
+                            كلمة المرور
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (!FilteredUsers.Any())
+        {
+            <div class="users-empty"><i class="bi bi-person-lines-fill"></i><h3>ماكو حسابات مطابقة</h3><p>جرّب تغيّر البحث أو الفلتر.</p></div>
+        }
+    }
+
+    @if (showModal)
+    {
+        <div class="users-modal-backdrop">
+            <div class="users-modal">
+                <div class="users-modal-header">
+                    <div class="users-modal-title"><span class="users-modal-symbol"><i class="bi bi-person-gear"></i></span><div><h3>@(editingId is null ? "إضافة مستخدم" : "تعديل مستخدم")</h3><p>تحديد بيانات الحساب والصلاحية</p></div></div>
+                    <button @onclick="CloseModal" type="button" aria-label="إغلاق">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+                <form @onsubmit="SaveAsync" @onsubmit:preventDefault>
+                    <label>الاسم الكامل</label>
+                    <input class="form-control"
+                           @bind="fullName"
+                           required />
+
+                    @if (editingId is null)
+                    {
+                        <label>اسم المستخدم</label>
+                        <input class="form-control"
+                               @bind="userName"
+                               autocomplete="off"
+                               required />
+
+                        <label>كلمة المرور</label>
+                        <input class="form-control"
+                               type="password"
+                               @bind="password"
+                               autocomplete="new-password"
+                               required />
+                    }
+
+                    <label>الصلاحية</label>
+                    <select class="form-select" @bind="role">
+                        <option value="Employee">موظف</option>
+                        <option value="Admin">مدير النظام</option>
+                    </select>
+
+                    @if (editingId is not null)
+                    {
+                        <label class="users-check">
+                            <input type="checkbox" @bind="isActive" />
+                            الحساب فعال
+                        </label>
+                    }
+
+                    @if (!string.IsNullOrEmpty(modalError))
+                    {
+                        <div class="alert alert-danger mt-3">
+                            @modalError
+                        </div>
+                    }
+
+                    <button class="btn btn-primary w-100 mt-4"
+                            disabled="@saving">
+                        @(saving ? "جاري الحفظ..." : "حفظ البيانات")
+                    </button>
+                </form>
+            </div>
+        </div>
+    }
+
+    @if (showPasswordModal)
+    {
+        <div class="users-modal-backdrop">
+            <div class="users-modal">
+                <div class="users-modal-header">
+                    <div class="users-modal-title"><span class="users-modal-symbol"><i class="bi bi-key-fill"></i></span><div><h3>إعادة تعيين كلمة المرور</h3><p>إنشاء كلمة مرور جديدة للحساب</p></div></div>
+                    <button @onclick="CloseModal" type="button" aria-label="إغلاق">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+                <form @onsubmit="ResetPasswordAsync"
+                      @onsubmit:preventDefault>
+                    <p class="text-muted small">
+                        المستخدم: @selectedUserName
+                    </p>
+
+                    <label>كلمة المرور الجديدة</label>
+                    <input type="password"
+                           class="form-control"
+                           @bind="newPassword"
+                           autocomplete="new-password"
+                           required />
+
+                    @if (!string.IsNullOrEmpty(modalError))
+                    {
+                        <div class="alert alert-danger mt-3">
+                            @modalError
+                        </div>
+                    }
+
+                    <button class="btn btn-primary w-100 mt-4"
+                            disabled="@saving">
+                        @(saving ? "جاري الحفظ..." : "تغيير كلمة المرور")
+                    </button>
+                </form>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<UserDto> users = new();
+
+    private string search = "";
+    private string statusFilter = "all";
+
+    private static string Initials(string? name)
+    {
+        var words = (name ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return "؟";
+        return string.Concat(words.Take(2).Select(x => x[..1]));
+    }
+    private string? message;
+    private string? error;
+    private string? modalError;
+
+    private bool loading;
+    private bool saving;
+    private bool showModal;
+    private bool showPasswordModal;
+
+    private string? editingId;
+    private string? selectedUserName;
+
+    private string fullName = "";
+    private string userName = "";
+    private string password = "";
+    private string role = "Employee";
+    private bool isActive = true;
+    private string newPassword = "";
+
+    private IEnumerable<UserDto> FilteredUsers =>
+        users.Where(x =>
+            (x.FullName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+             x.UserName.Contains(search, StringComparison.OrdinalIgnoreCase)) &&
+            (statusFilter switch
+            {
+                "active" => x.IsActive,
+                "inactive" => !x.IsActive,
+                "admins" => x.Role == "Admin",
+                "employees" => x.Role == "Employee",
+                _ => true
+            }));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        error = null;
+
+        try
+        {
+            users = await Http.GetFromJsonAsync<List<UserDto>>(
+                "api/users") ?? new();
+        }
+        catch
+        {
+            error = "تعذر تحميل المستخدمين.";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void OpenCreate()
+    {
+        editingId = null;
+        fullName = "";
+        userName = "";
+        password = "";
+        role = "Employee";
+        isActive = true;
+        modalError = null;
+        showModal = true;
+    }
+
+    private void OpenEdit(UserDto user)
+    {
+        editingId = user.Id;
+        fullName = user.FullName;
+        userName = user.UserName;
+        role = user.Role;
+        isActive = user.IsActive;
+        modalError = null;
+        showModal = true;
+    }
+
+    private void OpenPassword(UserDto user)
+    {
+        editingId = user.Id;
+        selectedUserName = user.UserName;
+        newPassword = "";
+        modalError = null;
+        showPasswordModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        showPasswordModal = false;
+        modalError = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        modalError = null;
+
+        try
+        {
+            using var request = editingId is null
+                ? new HttpRequestMessage(
+                    HttpMethod.Post, "api/users")
+                : new HttpRequestMessage(
+                    HttpMethod.Put, $"api/users/{editingId}");
+
+            if (editingId is null)
+            {
+                request.Content = JsonContent.Create(new CreateUserRequest
+                {
+                    UserName = userName,
+                    FullName = fullName,
+                    Password = password,
+                    Role = role
+                });
+            }
+            else
+            {
+                request.Content = JsonContent.Create(new UpdateUserRequest
+                {
+                    FullName = fullName,
+                    Role = role,
+                    IsActive = isActive
+                });
+            }
+
+            await AddCsrfAsync(request);
+
+            using var response = await Http.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                modalError = await ReadErrorAsync(response);
+                return;
+            }
+
+            CloseModal();
+            message = "تم حفظ بيانات المستخدم بنجاح.";
+            await LoadAsync();
+        }
+        catch
+        {
+            modalError = "حدث خطأ أثناء حفظ المستخدم.";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task ResetPasswordAsync()
+    {
+        if (editingId is null)
+            return;
+
+        saving = true;
+        modalError = null;
+
+        try
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"api/users/{editingId}/reset-password");
+
+            request.Content = JsonContent.Create(
+                new ResetUserPasswordRequest
+                {
+                    NewPassword = newPassword
+                });
+
+            await AddCsrfAsync(request);
+
+            using var response = await Http.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                modalError = await ReadErrorAsync(response);
+                return;
+            }
+
+            CloseModal();
+            message = "تم تغيير كلمة المرور بنجاح.";
+        }
+        catch
+        {
+            modalError = "تعذر تغيير كلمة المرور.";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task AddCsrfAsync(HttpRequestMessage request)
+    {
+        var csrf = await Http.GetFromJsonAsync<CsrfResponse>(
+            "api/auth/csrf");
+
+        if (string.IsNullOrWhiteSpace(csrf?.Token))
+            throw new InvalidOperationException("CSRF token unavailable");
+
+        request.Headers.Add("X-CSRF-TOKEN", csrf.Token);
+    }
+
+    private static async Task<string> ReadErrorAsync(
+        HttpResponseMessage response)
+    {
+        try
+        {
+            var result = await response.Content
+                .ReadFromJsonAsync<ApiError>();
+
+            if (result?.Errors?.Length > 0)
+                return string.Join("، ", result.Errors);
+
+            return result?.Message ?? "تعذر تنفيذ العملية.";
+        }
+        catch
+        {
+            return $"فشل الطلب: {(int)response.StatusCode}";
+        }
+    }
+
+    private sealed class CsrfResponse
+    {
+        public string Token { get; set; } = "";
+    }
+
+    private sealed class ApiError
+    {
+        public string? Message { get; set; }
+        public string[]? Errors { get; set; }
+    }
+}
