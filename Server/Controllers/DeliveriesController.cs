@@ -7,11 +7,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
-using DeliveryTracker.Shared.Dtos.Deliveries;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using DeliveryTracker.Server.Services;
 namespace DeliveryTracker.Server.Controllers;
 
 [ApiController]
@@ -308,5 +304,50 @@ public class DeliveriesController : ControllerBase
 			PageSize = pageSize
 		});
 	}
+
+
+
+
+	[HttpGet("{id:int}/pdf")]
+	public async Task<IActionResult> DownloadReceipt(
+		int id,
+		[FromServices] DeliveryReceiptPdfService pdfService,
+		[FromServices] IConfiguration config,
+		CancellationToken ct)
+	{
+		var result = await GetById(id, ct);
+
+		if (result.Result is not OkObjectResult ok ||
+			ok.Value is not DeliveryDto delivery)
+		{
+			return result.Result ?? NotFound();
+		}
+
+		var qrToken = await _db.Shops
+			.AsNoTracking()
+			.Where(x => x.Id == delivery.ShopId)
+			.Select(x => x.QrToken)
+			.FirstOrDefaultAsync(ct);
+
+		if (qrToken == Guid.Empty)
+			return NotFound("رمز المحل غير موجود");
+
+		var baseUrl = config["App:PublicBaseUrl"];
+
+		if (string.IsNullOrWhiteSpace(baseUrl))
+			return Problem("لم يتم إعداد رابط الموقع");
+
+		var shopUrl =
+			$"{baseUrl.TrimEnd('/')}/scan?token={qrToken:D}";
+
+		var pdf = pdfService.Generate(delivery, shopUrl);
+
+		return File(
+			pdf,
+			"application/pdf",
+			$"Delivery-{id:D6}.pdf");
+	}
+
+
 
 }

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -28,6 +28,8 @@
 		<ProjectReference Include="..\Shared\DeliveryTracker.Shared.csproj" />
 		<ProjectReference Include="..\DeliveryTracker.csproj" />
 	</ItemGroup>
-
+	<ItemGroup>
+		<Content Include="Resources/Fonts/*.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+	</ItemGroup>
 </Project>
 

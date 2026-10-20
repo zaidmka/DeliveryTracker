@@ -57,6 +57,16 @@
                 <div class="scan-actions-center">
                     <button type="button" class="scan-btn scan-btn-primary" @onclick="StartAnother"><i class="bi bi-arrow-repeat"></i> تسليم آخر لنفس المحل</button>
                     <button type="button" class="scan-btn scan-btn-soft" @onclick="ScanAnotherShop"><i class="bi bi-qr-code-scan"></i> مسح محل آخر</button>
+                    @if (savedDeliveryId.HasValue)
+                    {
+                        <a class="btn btn-outline-primary rounded-3"
+                           href="@($"/api/deliveries/{savedDeliveryId.Value}/pdf")"
+                           target="_blank"
+                           rel="noopener noreferrer">
+                            <i class="bi bi-file-earmark-pdf ms-2"></i>
+                            تحميل وصل التسليم PDF
+                        </a>
+                    }
                 </div>
             </div>
         }
@@ -158,6 +168,7 @@
             </section>
         }
     </div>
+   
 </div>
 
 @if (cameraOpen)

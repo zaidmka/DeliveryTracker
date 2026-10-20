@@ -123,7 +123,14 @@
                             <strong>@delivery.ShopName</strong>
                             <small>@delivery.ShopCode</small>
                         </div>
-
+                        <a class="btn btn-sm btn-outline-danger"
+                           href="@($"/api/deliveries/{delivery.Id}/pdf")"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           title="تحميل وصل التسليم">
+                            <i class="bi bi-file-earmark-pdf"></i>
+                            PDF
+                        </a>
                         <span class="dh-status">
                             <i class="bi bi-check-circle-fill"></i>
                             مسجّلة
@@ -145,6 +152,7 @@
                             #@delivery.Id
                         </span>
                     </div>
+
                 </button>
             }
         </div>

@@ -1,11 +1,14 @@
 using DeliveryTracker.Server.Data;
 using DeliveryTracker.Server.Identity;
+using DeliveryTracker.Server.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Drawing;
+using QuestPDF.Infrastructure;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +25,19 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 
 //services 
+
+QuestPDF.Settings.License = LicenseType.Community;
+var fontPath = Path.Combine(
+	builder.Environment.ContentRootPath,
+	"Resources",
+	"Fonts",
+	"NotoNaskhArabic-Regular.ttf");
+
+using (var fontStream = File.OpenRead(fontPath))
+{
+	FontManager.RegisterFont(fontStream);
+}
+builder.Services.AddSingleton<DeliveryReceiptPdfService>();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
