@@ -10,7 +10,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\..\AppData\Local\Temp\11de0640-9508-40b5-950f-5e299643bf8a_DeliveryTracker_Scan_Modern.zip.f8a\delivery_scan\scanCamera.js" Link="wwwroot\js\scanCamera.js" />
     <None Include="wwwroot\DeliveryLayout.css" />
   </ItemGroup>
 
