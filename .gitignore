@@ -361,3 +361,13 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# DeliveryTracker Server secrets
+Server/appsettings.json
+Server/appsettings.Development.json
+Server/appsettings.Production.json
+Server/.env
+Server/.env.*
+**/bin/
+**/obj/
+
+build-errors.txt
