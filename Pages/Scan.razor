@@ -1,9 +1,10 @@
 ﻿@page "/scan"
 @attribute [Authorize]
-@implements IDisposable
+@implements IAsyncDisposable
 
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
 @using DeliveryTracker.Shared.Dtos.Shops
 @using DeliveryTracker.Shared.Dtos.Items
 @using DeliveryTracker.Shared.Dtos.Deliveries
@@ -12,203 +13,167 @@
 
 @inject IDeliveryService DeliveryService
 @inject IItemService ItemService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
 
-<PageTitle>تسجيل تسليم - DeliveryTracker</PageTitle>
+<PageTitle>تسجيل تسليم | DeliveryTracker</PageTitle>
 
-<div class="container-fluid py-3" dir="rtl">
-
-    <div class="mb-4">
-        <div class="text-primary small fw-semibold mb-1">
-            <i class="bi bi-qr-code-scan ms-1"></i>
-            عمليات التوزيع
-        </div>
-        <h3 class="fw-bold mb-1">تسجيل تسليم</h3>
-        <p class="text-muted small mb-0">
-            امسح رمز المحل، ثم أدخل الكميات المسلّمة.
-        </p>
-    </div>
-
-    @if (loading)
-    {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary"></div>
-            <p class="text-muted mt-3">جاري تحميل البيانات...</p>
-        </div>
-    }
-    else if (!string.IsNullOrWhiteSpace(error))
-    {
-        <div class="alert alert-danger rounded-4">
-            <i class="bi bi-exclamation-circle ms-1"></i>
-            @error
-        </div>
-    }
-    else if (shop is null)
-    {
-        <div class="card border-0 shadow-sm rounded-4">
-            <div class="card-body text-center py-5">
-                <i class="bi bi-qr-code-scan text-primary"
-                   style="font-size: 55px;"></i>
-
-                <h5 class="fw-bold mt-3">بانتظار مسح QR</h5>
-                <p class="text-muted small">
-                    افتح كاميرا الموبايل وامسح رمز المحل.
-                </p>
-
-                <div class="text-muted small">
-                    أو أدخل رابط QR الخاص بالمحل في المتصفح.
+<div class="scan-page" dir="rtl">
+    <div class="scan-shell">
+        <header class="scan-hero">
+            <div class="scan-eyebrow"><i class="bi bi-box-seam"></i> إدارة التوزيع <span class="scan-eyebrow-dot"></span> تسجيل ميداني</div>
+            <div class="scan-hero-main">
+                <div>
+                    <h1>تسجيل تسليم <span>جديد</span></h1>
+                    <p>امسح رمز المحل، حدّد الكميات، وأكّد التسليم بخطوات بسيطة.</p>
                 </div>
+                <div class="scan-hero-icon"><i class="bi bi-qr-code-scan"></i></div>
             </div>
-        </div>
-    }
-    else if (savedDeliveryId.HasValue)
-    {
-        <div class="card border-0 shadow-sm rounded-4">
-            <div class="card-body text-center py-5">
-                <i class="bi bi-check-circle-fill text-success"
-                   style="font-size: 65px;"></i>
+        </header>
 
-                <h4 class="fw-bold mt-3">تم تسجيل التسليم بنجاح</h4>
-
-                <p class="text-muted">
-                    @shop.Name
-                </p>
-
-                <div class="bg-light rounded-3 p-3 mb-4">
-                    رقم عملية التسليم
-                    <div class="fs-3 fw-bold">
-                        #@savedDeliveryId
-                    </div>
-                </div>
-
-                <button class="btn btn-primary rounded-3"
-                        @onclick="StartAnother">
-                    تسجيل تسليم آخر لنفس المحل
-                </button>
-            </div>
-        </div>
-    }
-    else
-    {
-        <div class="card border-0 shadow-sm rounded-4 mb-3">
-            <div class="card-body">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-3">
-                        <i class="bi bi-shop fs-3"></i>
-                    </div>
-                    <div>
-                        <h5 class="fw-bold mb-1">@shop.Name</h5>
-                        <div class="text-muted small">@shop.Code</div>
-                    </div>
-                </div>
-
-                @if (!string.IsNullOrWhiteSpace(shop.Address))
-                {
-                    <div class="text-muted small mt-3">
-                        <i class="bi bi-geo-alt ms-1"></i>
-                        @shop.Address
-                    </div>
-                }
-            </div>
+        <div class="scan-steps" aria-label="مراحل التسليم">
+            <div class="scan-step @(shop is not null ? "done" : "current")"><span>1</span> مسح المحل</div>
+            <i class="bi bi-chevron-left"></i>
+            <div class="scan-step @(shop is not null && !savedDeliveryId.HasValue ? "current" : savedDeliveryId.HasValue ? "done" : "")"><span>2</span> تحديد المواد</div>
+            <i class="bi bi-chevron-left"></i>
+            <div class="scan-step @(savedDeliveryId.HasValue ? "done" : "")"><span>3</span> التأكيد</div>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold mb-0">المواد المسلّمة</h5>
-            <span class="badge bg-primary rounded-pill">
-                @SelectedCount مادة
-            </span>
-        </div>
-
-        @if (quantities.Count == 0)
+        @if (loading)
         {
-            <div class="alert alert-warning">
-                لا توجد مواد فعالة متاحة للتسليم.
+            <div class="scan-panel scan-centered" role="status">
+                <div class="spinner-border text-primary" aria-hidden="true"></div>
+                <h3>جاري تحميل بيانات المحل...</h3>
+                <p>يرجى الانتظار قليلاً</p>
+            </div>
+        }
+        else if (savedDeliveryId.HasValue && shop is not null)
+        {
+            <div class="scan-panel scan-centered scan-success">
+                <div class="scan-success-icon"><i class="bi bi-check-lg"></i></div>
+                <h2>تم تسجيل التسليم بنجاح!</h2>
+                <p>تم حفظ عملية التسليم إلى <strong>@shop.Name</strong></p>
+                <div class="scan-receipt"><span>رقم عملية التسليم</span><strong>#@savedDeliveryId</strong></div>
+                <div class="scan-actions-center">
+                    <button type="button" class="scan-btn scan-btn-primary" @onclick="StartAnother"><i class="bi bi-arrow-repeat"></i> تسليم آخر لنفس المحل</button>
+                    <button type="button" class="scan-btn scan-btn-soft" @onclick="ScanAnotherShop"><i class="bi bi-qr-code-scan"></i> مسح محل آخر</button>
+                </div>
+            </div>
+        }
+        else if (shop is null)
+        {
+            <div class="scan-panel scan-centered scan-welcome">
+                <div class="scan-illustration"><i class="bi bi-qr-code-scan"></i><span><i class="bi bi-camera-fill"></i></span></div>
+                <h2>جاهز لمسح رمز المحل؟</h2>
+                <p>وجّه كاميرا هاتفك نحو رمز QR الموجود لدى المحل للبدء.</p>
+
+                @if (!string.IsNullOrWhiteSpace(error))
+                {
+                    <div class="scan-alert scan-alert-danger" role="alert"><i class="bi bi-exclamation-triangle"></i> @error</div>
+                }
+                <button type="button" class="scan-btn scan-btn-primary scan-btn-big" @onclick="OpenCameraAsync" disabled="@cameraBusy">
+                    <i class="bi bi-camera"></i> @(cameraBusy ? "جاري تشغيل الكاميرا..." : "فتح الكاميرا ومسح QR")
+                </button>
+                <div class="scan-hint"><i class="bi bi-shield-check"></i> يتطلب استخدام الكاميرا إذنك، واتصال HTTPS</div>
             </div>
         }
         else
         {
-            <div class="d-flex flex-column gap-2 mb-3">
-                @foreach (var item in items)
+            <section class="scan-panel scan-shop">
+                <div class="scan-shop-icon"><i class="bi bi-shop-window"></i></div>
+                <div class="scan-shop-info">
+                    <span class="scan-kicker">المحل المحدد <i class="bi bi-patch-check-fill"></i></span>
+                    <h2>@shop.Name</h2>
+                    <div class="scan-shop-meta">
+                        <span><i class="bi bi-upc-scan"></i> @shop.Code</span>
+                        @if (!string.IsNullOrWhiteSpace(shop.Address))
+                        {
+                            <span><i class="bi bi-geo-alt"></i> @shop.Address</span>
+                        }
+                    </div>
+                </div>
+                <button type="button" class="scan-icon-btn" title="مسح محل آخر" aria-label="مسح محل آخر" @onclick="ScanAnotherShop"><i class="bi bi-arrow-repeat"></i></button>
+            </section>
+
+            <section class="scan-section">
+                <div class="scan-section-heading">
+                    <div><span class="scan-kicker">تفاصيل العملية</span><h2>المواد المسلّمة</h2></div>
+                    <span class="scan-counter">@SelectedCount من @items.Count مادة</span>
+                </div>
+                @if (items.Count == 0)
                 {
-                    <div class="card border-0 shadow-sm rounded-4"
-                         @key="item.Id">
-                        <div class="card-body d-flex align-items-center justify-content-between gap-3">
-
-                            <div class="flex-grow-1">
-                                <div class="fw-bold">@item.Name</div>
-
-                                @if (!string.IsNullOrWhiteSpace(item.Description))
-                                {
-                                    <div class="text-muted small mt-1">
-                                        @item.Description
+                    <div class="scan-alert scan-alert-warning"><i class="bi bi-info-circle"></i> لا توجد مواد فعالة متاحة للتسليم.</div>
+                }
+                else
+                {
+                    <div class="scan-items">
+                        @foreach (var item in items)
+                        {
+                            <div class="scan-item @(quantities.GetValueOrDefault(item.Id) > 0 ? "scan-item-active" : "")" @key="item.Id">
+                                <div class="scan-item-icon"><i class="bi bi-box-seam"></i></div>
+                                <div class="scan-item-text">
+                                    <strong>@item.Name</strong>
+                                    @if (!string.IsNullOrWhiteSpace(item.Description))
+                                    {
+                                        <small>@item.Description</small>
+                                    }
+                                </div>
+                                <div class="scan-qty">
+                                    <label for="qty-@item.Id">الكمية</label>
+                                    <div class="scan-qty-controls">
+                                        <button type="button" aria-label="تقليل كمية @item.Name" disabled="@(quantities.GetValueOrDefault(item.Id) == 0 || saving)" @onclick="() => ChangeQuantity(item.Id, -1)"><i class="bi bi-dash"></i></button>
+                                        <input id="qty-@item.Id" type="number" min="0" step="1" inputmode="numeric" value="@quantities[item.Id]" disabled="@saving" @onchange="e => SetQuantity(item.Id, e.Value?.ToString())" />
+                                        <button type="button" aria-label="زيادة كمية @item.Name" disabled="@saving" @onclick="() => ChangeQuantity(item.Id, 1)"><i class="bi bi-plus"></i></button>
                                     </div>
-                                }
+                                </div>
                             </div>
-
-                            <div style="width: 105px;">
-                                <label class="form-label text-muted small mb-1">
-                                    الكمية
-                                </label>
-
-                                <input type="number"
-                                       class="form-control text-center"
-                                       min="0"
-                                       step="1"
-                                       inputmode="numeric"
-                                       value="@quantities[item.Id]"
-                                       @onchange="e => SetQuantity(item.Id, e.Value?.ToString())" />
-                            </div>
-                        </div>
+                        }
                     </div>
                 }
-            </div>
-        }
+            </section>
 
-        <div class="card border-0 shadow-sm rounded-4 mb-3">
-            <div class="card-body">
-                <label class="form-label fw-semibold">ملاحظات (اختياري)</label>
-                <textarea class="form-control"
-                          rows="3"
-                          maxlength="500"
-                          @bind="notes"
-                          placeholder="أي ملاحظة تخص التسليم..."></textarea>
-            </div>
-        </div>
+            <section class="scan-panel scan-notes">
+                <label for="deliveryNotes"><i class="bi bi-chat-left-text"></i> ملاحظات التسليم <span>(اختياري)</span></label>
+                <textarea id="deliveryNotes" rows="3" maxlength="500" @bind="notes" disabled="@saving" placeholder="أضف أي تفاصيل أو ملاحظات تخص هذه العملية..."></textarea>
+            </section>
 
-        @if (!string.IsNullOrWhiteSpace(saveError))
-        {
-            <div class="alert alert-danger">@saveError</div>
-        }
-
-        <div class="card border-0 shadow-sm rounded-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between mb-3">
-                    <span class="text-muted">المواد المحددة</span>
-                    <strong>@SelectedCount</strong>
-                </div>
-
-                <div class="d-flex justify-content-between mb-3">
-                    <span class="text-muted">مجموع القطع</span>
-                    <strong>@TotalQuantity</strong>
-                </div>
-
-                <button class="btn btn-primary w-100 py-3 rounded-3 fw-bold"
-                        disabled="@(saving || SelectedCount == 0)"
-                        @onclick="SaveDeliveryAsync">
+            <section class="scan-panel scan-summary">
+                <div class="scan-section-heading"><div><span class="scan-kicker">مراجعة سريعة</span><h2>ملخص التسليم</h2></div><i class="bi bi-receipt"></i></div>
+                <div class="scan-summary-row"><span>عدد أنواع المواد</span><strong>@SelectedCount</strong></div>
+                <div class="scan-summary-row scan-summary-total"><span>إجمالي القطع</span><strong>@TotalQuantity</strong></div>
+                @if (!string.IsNullOrWhiteSpace(saveError))
+                {
+                    <div class="scan-alert scan-alert-danger" role="alert"><i class="bi bi-exclamation-triangle"></i> @saveError</div>
+                }
+                <button type="button" class="scan-btn scan-btn-primary scan-submit" disabled="@(saving || SelectedCount == 0)" @onclick="SaveDeliveryAsync">
                     @if (saving)
                     {
-                        <span class="spinner-border spinner-border-sm ms-2"></span>
-                        <span>جاري الحفظ...</span>
+                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>جاري حفظ التسليم...</span>
                     }
                     else
                     {
-                        <i class="bi bi-check2-circle ms-2"></i>
-                        <span>تأكيد وحفظ التسليم</span>
+                        <i class="bi bi-check2-circle"></i><span>تأكيد وحفظ التسليم</span><i class="bi bi-arrow-left scan-submit-arrow"></i>
                     }
                 </button>
-            </div>
-        </div>
-    }
+            </section>
+        }
+    </div>
 </div>
+
+@if (cameraOpen)
+{
+    <div class="scan-modal-backdrop" @onclick="CloseCameraAsync">
+        <div class="scan-modal" role="dialog" aria-modal="true" aria-label="مسح رمز QR" @onclick:stopPropagation="true">
+            <div class="scan-modal-header"><div><strong>مسح رمز QR</strong><small>وجّه الكاميرا نحو رمز المحل</small></div><button type="button" @onclick="CloseCameraAsync" aria-label="إغلاق"><i class="bi bi-x-lg"></i></button></div>
+            <div id="delivery-qr-reader" class="scan-reader"></div>
+            @if (!string.IsNullOrWhiteSpace(cameraError))
+            {
+                <div class="scan-alert scan-alert-danger" role="alert">@cameraError</div>
+            }
+            <div class="scan-modal-footer"><i class="bi bi-lightbulb"></i> تأكد من وضوح الرمز والإضاءة المناسبة.</div>
+        </div>
+    </div>
+}
 
 @code {
     [SupplyParameterFromQuery(Name = "token")]
@@ -217,28 +182,18 @@
     private ShopDto? shop;
     private List<ItemDto> items = new();
     private Dictionary<int, int> quantities = new();
-
-    private bool loading;
-    private bool saving;
-    private string? error;
-    private string? saveError;
-    private string? notes;
+    private bool loading, saving, cameraOpen, cameraBusy, cameraStartPending;
+    private string? error, saveError, cameraError, notes, loadedToken;
     private int? savedDeliveryId;
-
-    private string? loadedToken;
+    private DotNetObjectReference<Scan>? dotNetRef;
     private bool disposed;
 
-    private int SelectedCount =>
-        quantities.Count(x => x.Value > 0);
-
-    private int TotalQuantity =>
-        quantities.Values.Sum();
+    private int SelectedCount => quantities.Count(x => x.Value > 0);
+    private long TotalQuantity => quantities.Values.Sum(x => (long)x);
 
     protected override async Task OnParametersSetAsync()
     {
-        if (Token == loadedToken)
-            return;
-
+        if (Token == loadedToken) return;
         loadedToken = Token;
         await LoadAsync();
     }
@@ -246,108 +201,146 @@
     private async Task LoadAsync()
     {
         loading = true;
-        error = null;
-        saveError = null;
+        error = saveError = null;
         savedDeliveryId = null;
         shop = null;
         items.Clear();
         quantities.Clear();
         notes = null;
-
         try
         {
-            if (string.IsNullOrWhiteSpace(Token))
-                return;
-
-            if (!Guid.TryParse(Token, out var qrToken) ||
-                qrToken == Guid.Empty)
+            if (string.IsNullOrWhiteSpace(Token)) return;
+            if (!Guid.TryParse(Token, out var qrToken) || qrToken == Guid.Empty)
             {
-                error = "رمز QR غير صالح";
+                error = "رمز QR غير صالح. حاول مسح الرمز مجدداً.";
                 return;
             }
-
             shop = await DeliveryService.GetShopByQrAsync(qrToken);
-
             if (shop is null)
             {
-                error = "المحل غير موجود أو غير فعال";
+                error = "المحل غير موجود أو غير فعال.";
                 return;
             }
-
             items = await ItemService.GetAllAsync(activeOnly: true);
-
             quantities = items.ToDictionary(x => x.Id, _ => 0);
         }
         catch (Exception)
         {
-            error = "تعذر تحميل بيانات المحل أو المواد.";
+            error = "تعذر تحميل بيانات المحل أو المواد. حاول مرة أخرى.";
         }
-        finally
-        {
-            loading = false;
-        }
+        finally { loading = false; }
     }
 
     private void SetQuantity(int itemId, string? value)
     {
-        if (!quantities.ContainsKey(itemId))
-            return;
-
-        if (!int.TryParse(value, out var quantity) || quantity < 0)
-            quantity = 0;
-
+        if (!quantities.ContainsKey(itemId)) return;
+        if (!int.TryParse(value, out var quantity) || quantity < 0) quantity = 0;
         quantities[itemId] = quantity;
+    }
+
+    private void ChangeQuantity(int itemId, int delta)
+    {
+        if (!quantities.TryGetValue(itemId, out var current)) return;
+        if (delta > 0 && current == int.MaxValue) return;
+        quantities[itemId] = Math.Max(0, current + delta);
+    }
+
+    private Task OpenCameraAsync()
+    {
+        if (cameraBusy || cameraOpen) return Task.CompletedTask;
+        cameraError = null;
+        cameraOpen = true;
+        cameraBusy = true;
+        cameraStartPending = true;
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!cameraStartPending || !cameraOpen) return;
+        cameraStartPending = false;
+        try
+        {
+            dotNetRef ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("deliveryQrScanner.start", "delivery-qr-reader", dotNetRef);
+        }
+        catch (Exception)
+        {
+            cameraError = "تعذر تشغيل الكاميرا. تأكد من إذن الكاميرا وHTTPS واتصال الإنترنت لتحميل مكتبة المسح.";
+        }
+        finally
+        {
+            cameraBusy = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task CloseCameraAsync()
+    {
+        if (!cameraOpen) return;
+        try { await JS.InvokeVoidAsync("deliveryQrScanner.stop"); }
+        catch (JSException) { }
+        cameraOpen = false;
+        cameraBusy = false;
+        cameraStartPending = false;
+    }
+
+    [JSInvokable]
+    public async Task OnQrDetected(string qrText)
+    {
+        if (disposed) return;
+        string? token = null;
+        if (Guid.TryParse(qrText.Trim(), out var directToken)) token = directToken.ToString();
+        else if (Uri.TryCreate(qrText.Trim(), UriKind.Absolute, out var uri))
+        {
+            var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+            if (query.TryGetValue("token", out var values) && Guid.TryParse(values.ToString(), out var parsed))
+                token = parsed.ToString();
+        }
+        if (token is null)
+        {
+            cameraError = "الرمز المقروء لا يحتوي على Token صالح للمحل.";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+        await CloseCameraAsync();
+        await InvokeAsync(() => Navigation.NavigateTo($"/scan?token={Uri.EscapeDataString(token)}"));
     }
 
     private async Task SaveDeliveryAsync()
     {
-        if (saving || shop is null || SelectedCount == 0)
-            return;
-
+        if (saving || shop is null || SelectedCount == 0) return;
         saving = true;
         saveError = null;
-
         try
         {
             var request = new CreateDeliveryRequest
             {
                 ShopQrToken = shop.QrToken,
                 Notes = notes,
-                Items = quantities
-                    .Where(x => x.Value > 0)
-                    .Select(x => new CreateDeliveryItemRequest
-                    {
-                        ItemTypeId = x.Key,
-                        Quantity = x.Value
-                    })
-                    .ToList()
+                Items = quantities.Where(x => x.Value > 0)
+                    .Select(x => new CreateDeliveryItemRequest { ItemTypeId = x.Key, Quantity = x.Value }).ToList()
             };
-
-            savedDeliveryId =
-                await DeliveryService.CreateAsync(request);
+            savedDeliveryId = await DeliveryService.CreateAsync(request);
         }
-        catch (Exception ex)
-        {
-            saveError = ex.Message;
-        }
-        finally
-        {
-            saving = false;
-        }
+        catch (Exception ex) { saveError = ex.Message; }
+        finally { saving = false; }
     }
 
     private void StartAnother()
     {
         savedDeliveryId = null;
-        saveError = null;
-        notes = null;
-
-        foreach (var id in quantities.Keys.ToList())
-            quantities[id] = 0;
+        saveError = notes = null;
+        foreach (var id in quantities.Keys.ToList()) quantities[id] = 0;
     }
 
-    public void Dispose()
+    private void ScanAnotherShop() => Navigation.NavigateTo("/scan", forceLoad: false);
+
+    public async ValueTask DisposeAsync()
     {
         disposed = true;
+        try { await JS.InvokeVoidAsync("deliveryQrScanner.stop"); }
+        catch (Exception) { }
+        dotNetRef?.Dispose();
     }
 }
