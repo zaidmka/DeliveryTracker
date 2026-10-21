@@ -9,13 +9,12 @@ namespace DeliveryTracker.Server.Services;
 
 public class DeliveryReceiptPdfService
 {
-	private const string Navy = "#101D35";
+	private const string Navy = "#14243B";
 	private const string Blue = "#2563EB";
-	private const string Cyan = "#0891B2";
 	private const string Muted = "#64748B";
-	private const string Light = "#F1F5F9";
 	private const string Border = "#E2E8F0";
-	private const string Green = "#15803D";
+	private const string Soft = "#F4F7FB";
+	private const string Green = "#16804A";
 
 	public byte[] Generate(
 		DeliveryDto delivery,
@@ -26,25 +25,25 @@ public class DeliveryReceiptPdfService
 			shopScanUrl,
 			QRCodeGenerator.ECCLevel.Q);
 
-		var qrPng = new PngByteQRCode(qrData)
-			.GetGraphic(8);
+		byte[] qrImage = new PngByteQRCode(qrData).GetGraphic(10);
 
-		var total = delivery.Items.Sum(x => x.Quantity);
-		var itemCount = delivery.Items.Count;
+		int total = delivery.Items.Sum(x => x.Quantity);
+		int types = delivery.Items.Count;
 
-		var localDate = delivery.DeliveryDate
+		string receiptNo = $"DT-{delivery.Id:D6}";
+
+		string date = delivery.DeliveryDate
 			.ToUniversalTime()
 			.AddHours(3)
-			.ToString("yyyy/MM/dd  |  HH:mm");
-
-		var receiptNo = $"DT-{delivery.Id:D6}";
+			.ToString("yyyy/MM/dd - hh:mm tt");
 
 		var document = Document.Create(container =>
 		{
 			container.Page(page =>
 			{
 				page.Size(PageSizes.A4);
-				page.Margin(0);
+				page.MarginHorizontal(30);
+				page.MarginVertical(25);
 				page.PageColor(Colors.White);
 
 				page.DefaultTextStyle(x => x
@@ -52,177 +51,147 @@ public class DeliveryReceiptPdfService
 					.FontSize(11)
 					.FontColor(Navy));
 
-				// HEADER
-				page.Header()
-					.Background(Navy)
-					.Padding(30)
-					.Column(col =>
+				// رأس الوصل
+				page.Header().Column(header =>
+				{
+					header.Item().Row(row =>
 					{
-						col.Spacing(14);
-
-						col.Item().Row(row =>
+						row.RelativeItem().Column(brand =>
 						{
-							row.RelativeItem().Column(left =>
-							{
-								left.Item()
-									.Text("DeliveryTracker")
-									.FontSize(24)
-									.Bold()
-									.FontColor(Colors.White);
+							brand.Spacing(2);
 
-								left.Item()
-									.Text("SMART DISTRIBUTION SYSTEM")
-									.FontSize(9)
-									.FontColor("#A8C4E5");
-							});
-
-							row.ConstantItem(130)
-								.AlignRight()
-								.Text("DELIVERY RECEIPT")
-								.FontSize(10)
+							brand.Item()
+								.Text("DeliveryTracker")
+								.FontSize(23)
 								.Bold()
-								.FontColor("#67E8F9");
+								.FontColor(Navy);
+
+							brand.Item()
+								.Text("SMART DELIVERY MANAGEMENT")
+								.FontSize(8)
+								.FontColor(Muted);
 						});
 
-						col.Item()
-							.LineHorizontal(1)
-							.LineColor("#38506C");
-
-						col.Item().Row(row =>
-						{
-							row.RelativeItem().Column(left =>
+						row.RelativeItem()
+							.AlignRight()
+							.Column(title =>
 							{
-								left.Item()
+								title.Spacing(2);
+
+								title.Item()
+									.AlignRight()
+									.Text("وصل تسليم مواد")
+									.FontSize(19)
+									.Bold();
+
+								title.Item()
+									.AlignRight()
 									.Text(receiptNo)
-									.FontSize(20)
+									.FontSize(12)
 									.Bold()
-									.FontColor(Colors.White);
-
-								left.Item()
-									.Text("OFFICIAL DELIVERY RECORD")
-									.FontSize(9)
-									.FontColor("#A8C4E5");
+									.FontColor(Blue);
 							});
-
-							row.RelativeItem()
-								.AlignRight()
-								.Column(right =>
-								{
-									right.Item()
-										.AlignRight()
-										.Text("وصل تسليم مواد")
-										.FontSize(21)
-										.Bold()
-										.FontColor(Colors.White);
-
-									right.Item()
-										.AlignRight()
-										.Text("تم تسجيل العملية بنجاح")
-										.FontSize(10)
-										.FontColor("#86EFAC");
-								});
-						});
 					});
 
-				// CONTENT
+					header.Item()
+						.PaddingTop(12)
+						.LineHorizontal(2)
+						.LineColor(Blue);
+				});
+
+				// محتوى الوصل
 				page.Content()
-					.PaddingHorizontal(30)
-					.PaddingTop(22)
-					.PaddingBottom(12)
+					.PaddingTop(16)
 					.Column(col =>
 					{
-						col.Spacing(18);
+						col.Spacing(12);
 
-						// SHOP + QR
-						col.Item().Border(1)
-							.BorderColor(Border)
-							.CornerRadius(12)
-							.Padding(16)
+						// معلومات المحل والـ QR
+						col.Item()
+							.Background(Soft)
+							.CornerRadius(8)
+							.Padding(13)
 							.Row(row =>
 							{
-								row.ConstantItem(105)
+								row.ConstantItem(94)
 									.Column(qr =>
 									{
 										qr.Item()
-											.Width(95)
-											.Height(95)
-											.Image(qrPng)
+											.Width(85)
+											.Height(85)
+											.Image(qrImage)
 											.FitArea();
 
 										qr.Item()
 											.AlignCenter()
-											.Text("QR المحل")
-											.FontSize(9)
+											.Text("رمز المحل")
+											.FontSize(8)
 											.FontColor(Muted);
 									});
 
 								row.RelativeItem()
-									.PaddingLeft(12)
+									.PaddingLeft(15)
 									.AlignRight()
 									.Column(info =>
 									{
-										info.Spacing(5);
+										info.Spacing(4);
 
 										info.Item()
 											.AlignRight()
-											.Text("جهة الاستلام")
-											.FontSize(10)
+											.Text("بيانات جهة الاستلام")
+											.FontSize(9)
 											.FontColor(Muted);
 
 										info.Item()
 											.AlignRight()
 											.Text(delivery.ShopName)
-											.FontSize(19)
+											.FontSize(17)
 											.Bold();
 
 										info.Item()
 											.AlignRight()
 											.Text(
-												$"كود المحل: {delivery.ShopCode}")
-											.FontSize(11);
+												$"كود المحل: {delivery.ShopCode}");
 
 										info.Item()
 											.AlignRight()
-											.Text(
-												$"التاريخ: {localDate}")
+											.Text($"التاريخ: {date}")
 											.FontSize(10)
 											.FontColor(Muted);
+
+										info.Item()
+											.AlignRight()
+											.Text("● تم التسليم")
+											.FontSize(10)
+											.Bold()
+											.FontColor(Green);
 									});
 							});
 
-						// STATS
+						// عنوان الجدول + الإحصائيات
 						col.Item().Row(row =>
 						{
-							row.Spacing(10);
+							row.RelativeItem()
+								.Text(
+									$"{types} أنواع  |  {total:N0} قطعة")
+								.FontSize(10)
+								.FontColor(Muted);
 
-							row.RelativeItem().Element(c =>
-								StatCard(c, "أنواع المواد",
-									itemCount.ToString()));
-
-							row.RelativeItem().Element(c =>
-								StatCard(c, "إجمالي القطع",
-									total.ToString()));
-
-							row.RelativeItem().Element(c =>
-								StatCard(c, "حالة العملية",
-									"مكتمل"));
+							row.RelativeItem()
+								.AlignRight()
+								.Text("تفاصيل المواد المسلّمة")
+								.FontSize(14)
+								.Bold();
 						});
 
-						// ITEMS TITLE
-						col.Item()
-							.AlignRight()
-							.Text("تفاصيل المواد المسلّمة")
-							.FontSize(15)
-							.Bold();
-
-						// ITEMS TABLE
+						// جدول المواد
 						col.Item().Table(table =>
 						{
 							table.ColumnsDefinition(columns =>
 							{
-								columns.ConstantColumn(80);
+								columns.ConstantColumn(85);
 								columns.RelativeColumn();
-								columns.ConstantColumn(45);
+								columns.ConstantColumn(40);
 							});
 
 							table.Header(header =>
@@ -238,7 +207,7 @@ public class DeliveryReceiptPdfService
 
 								header.Cell()
 									.Element(TableHeader)
-									.Text("#");
+									.Text("ت");
 							});
 
 							int index = 1;
@@ -263,165 +232,143 @@ public class DeliveryReceiptPdfService
 							}
 						});
 
-						// TOTAL
+						// الإجمالي
 						col.Item()
 							.Background(Navy)
-							.CornerRadius(10)
-							.Padding(16)
+							.CornerRadius(6)
+							.PaddingHorizontal(15)
+							.PaddingVertical(10)
 							.Row(row =>
 							{
 								row.RelativeItem()
 									.Text($"{total:N0} قطعة")
-									.FontSize(19)
+									.FontSize(16)
 									.Bold()
 									.FontColor(Colors.White);
 
 								row.RelativeItem()
 									.AlignRight()
-									.Text("إجمالي المواد المسلّمة")
-									.FontSize(13)
+									.Text("إجمالي الكمية المسلّمة")
+									.FontSize(12)
 									.Bold()
 									.FontColor(Colors.White);
 							});
 
-						// NOTES
-						if (!string.IsNullOrWhiteSpace(
-							delivery.Notes))
+						// الملاحظات
+						if (!string.IsNullOrWhiteSpace(delivery.Notes))
 						{
 							col.Item()
-								.Background(Light)
-								.CornerRadius(8)
-								.Padding(13)
+								.Border(1)
+								.BorderColor(Border)
+								.CornerRadius(6)
+								.Padding(10)
 								.Column(notes =>
 								{
-									notes.Item()
-										.AlignRight()
-										.Text("ملاحظات التسليم")
-										.Bold()
-										.FontColor(Cyan);
+									notes.Spacing(3);
 
 									notes.Item()
 										.AlignRight()
-										.Text(delivery.Notes);
+										.Text("ملاحظات")
+										.Bold()
+										.FontSize(10);
+
+									notes.Item()
+										.AlignRight()
+										.Text(delivery.Notes)
+										.FontSize(10);
 								});
 						}
 
-						// SIGNATURES
+						// التواقيع
 						col.Item()
-							.PaddingTop(28)
+							.PaddingTop(18)
 							.Row(row =>
 							{
 								row.RelativeItem()
-									.PaddingRight(20)
+									.PaddingRight(22)
 									.Column(sign =>
 									{
 										sign.Item()
 											.AlignCenter()
-											.Text("توقيع المجهز");
+											.Text("توقيع المجهز")
+											.FontSize(10);
 
 										sign.Item()
-											.PaddingTop(38)
+											.PaddingTop(28)
 											.LineHorizontal(1)
 											.LineColor(Border);
 									});
 
 								row.RelativeItem()
-									.PaddingLeft(20)
+									.PaddingLeft(22)
 									.Column(sign =>
 									{
 										sign.Item()
 											.AlignCenter()
-											.Text("توقيع المستلم");
+											.Text("توقيع المستلم")
+											.FontSize(10);
 
 										sign.Item()
-											.PaddingTop(38)
+											.PaddingTop(28)
 											.LineHorizontal(1)
 											.LineColor(Border);
 									});
 							});
 					});
 
-				// FOOTER
-				page.Footer()
-					.PaddingHorizontal(30)
-					.PaddingBottom(18)
-					.Column(footer =>
-					{
-						footer.Item()
-							.LineHorizontal(1)
-							.LineColor(Border);
+				// تذييل بسيط
+				page.Footer().Column(footer =>
+				{
+					footer.Item()
+						.LineHorizontal(1)
+						.LineColor(Border);
 
-						footer.Item()
-							.PaddingTop(8)
-							.Row(row =>
-							{
-								row.RelativeItem()
-									.Text("Generated by DeliveryTracker")
-									.FontSize(9)
-									.FontColor(Muted);
+					footer.Item()
+						.PaddingTop(6)
+						.Row(row =>
+						{
+							row.RelativeItem()
+								.Text("DeliveryTracker • Digital Receipt")
+								.FontSize(8)
+								.FontColor(Muted);
 
-								row.RelativeItem()
-									.AlignRight()
-									.Text(t =>
-									{
-										t.Span("Page ");
-										t.CurrentPageNumber();
-										t.Span(" / ");
-										t.TotalPages();
-									});
-							});
-					});
+							row.RelativeItem()
+								.AlignRight()
+								.Text(text =>
+								{
+									text.Span("Page ");
+									text.CurrentPageNumber();
+									text.Span(" / ");
+									text.TotalPages();
+								});
+						});
+				});
 			});
 		});
 
 		return document.GeneratePdf();
 	}
 
-	private static void StatCard(
-		IContainer container,
-		string label,
-		string value)
-	{
-		container
-			.Background(Light)
-			.CornerRadius(9)
-			.Padding(12)
-			.Column(col =>
-			{
-				col.Item()
-					.AlignCenter()
-					.Text(value)
-					.FontSize(17)
-					.Bold()
-					.FontColor(Blue);
-
-				col.Item()
-					.AlignCenter()
-					.Text(label)
-					.FontSize(9)
-					.FontColor(Muted);
-			});
-	}
-
-	private static IContainer TableHeader(
-		IContainer container)
+	private static IContainer TableHeader(IContainer container)
 	{
 		return container
 			.Background(Navy)
-			.Padding(10)
+			.PaddingVertical(8)
+			.PaddingHorizontal(7)
 			.AlignCenter()
 			.DefaultTextStyle(x => x
 				.FontColor(Colors.White)
-				.Bold());
+				.Bold()
+				.FontSize(10));
 	}
 
-	private static IContainer TableCell(
-		IContainer container)
+	private static IContainer TableCell(IContainer container)
 	{
 		return container
 			.BorderBottom(1)
 			.BorderColor(Border)
-			.Padding(10)
+			.PaddingVertical(7)
+			.PaddingHorizontal(7)
 			.AlignCenter();
 	}
 }
