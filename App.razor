@@ -1,6 +1,119 @@
-﻿<Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+﻿@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+<Router AppAssembly="@typeof(App).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)"/>
-        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+
+        <AuthorizeRouteView RouteData="@routeData"
+                            DefaultLayout="@typeof(MainLayout)">
+
+            <NotAuthorized Context="authState">
+
+                @if (authState.User.Identity?.IsAuthenticated == true)
+                {
+                    <LayoutView Layout="@typeof(MainLayout)">
+                        <div class="access-page" dir="rtl">
+                            <div class="access-card">
+
+                                <img src="/logo.png"
+                                     class="access-logo"
+                                     alt="DeliveryTracker" />
+
+                                <div class="access-icon denied">
+                                    <span>!</span>
+                                </div>
+
+                                <h2>ليس لديك صلاحية</h2>
+
+                                <p>
+                                    حسابك لا يمتلك الصلاحيات اللازمة
+                                    للوصول إلى هذه الصفحة.
+                                </p>
+
+                                <a href="/" class="access-btn">
+                                    العودة للرئيسية
+                                </a>
+
+                            </div>
+                        </div>
+                    </LayoutView>
+                }
+                else
+                {
+                    <div class="access-page" dir="rtl">
+                        <div class="access-card">
+
+                            <img src="/logo.png"
+                                 class="access-logo"
+                                 alt="DeliveryTracker" />
+
+                            <div class="access-icon">
+                                <span>🔒</span>
+                            </div>
+
+                            <h2>تسجيل الدخول مطلوب</h2>
+
+                            <p>
+                                للوصول إلى هذه الصفحة واستخدام
+                                خدمات النظام، يرجى تسجيل الدخول أولاً.
+                            </p>
+
+                            <a href="/login" class="access-btn">
+                                تسجيل الدخول
+                            </a>
+
+                            <div class="access-footer">
+                                DeliveryTracker
+                                <span>Smart Distribution System</span>
+                            </div>
+
+                        </div>
+                    </div>
+                }
+
+            </NotAuthorized>
+
+            <Authorizing>
+                <div class="access-page" dir="rtl">
+                    <div class="access-card access-loading">
+
+                        <img src="/logo.png"
+                             class="access-logo"
+                             alt="DeliveryTracker" />
+
+                        <div class="spinner-border text-primary"
+                             role="status"></div>
+
+                        <p>جاري التحقق من تسجيل الدخول...</p>
+
+                    </div>
+                </div>
+            </Authorizing>
+
+        </AuthorizeRouteView>
+
+        <FocusOnNavigate RouteData="@routeData"
+                         Selector="h1" />
+
     </Found>
+
+    <NotFound>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <div class="access-page" dir="rtl">
+                <div class="access-card">
+                    <img src="/logo.png"
+                         class="access-logo"
+                         alt="DeliveryTracker" />
+
+                    <h2>الصفحة غير موجودة</h2>
+
+                    <p>الرابط المطلوب غير متوفر.</p>
+
+                    <a href="/" class="access-btn">
+                        العودة للرئيسية
+                    </a>
+                </div>
+            </div>
+        </LayoutView>
+    </NotFound>
 </Router>
